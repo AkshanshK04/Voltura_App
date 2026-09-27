@@ -19,26 +19,58 @@ class _SchematicMainScreenState
   bool fileViewOpen = false;
   bool schematicFullscreen = false;
 
-  void _openFileView() {
+  String? activeMenu;
+
+  static const double windowBarHeight = 50;
+  static const double menuBarHeight = 44;
+
+  void _onMenuChanged(String menu) {
+    if (!mounted) return;
+
+    if (menu.isEmpty) {
+      setState(() {
+        activeMenu = null;
+        fileViewOpen = false;
+      });
+      return;
+    }
+
+    if (menu == 'File') {
+      setState(() {
+        activeMenu = 'File';
+        fileViewOpen = true;
+      });
+      return;
+    }
+
     setState(() {
-      fileViewOpen = true;
+      activeMenu = menu;
+      fileViewOpen = false;
     });
   }
 
   void _closeFileView() {
+    if (!mounted) return;
+
     setState(() {
       fileViewOpen = false;
+      activeMenu = null;
     });
   }
 
   void _enterSchematicFullscreen() {
+    if (!mounted) return;
+
     setState(() {
       schematicFullscreen = true;
       fileViewOpen = false;
+      activeMenu = null;
     });
   }
 
   void _exitSchematicFullscreen() {
+    if (!mounted) return;
+
     setState(() {
       schematicFullscreen = false;
     });
@@ -46,6 +78,8 @@ class _SchematicMainScreenState
 
   @override
   Widget build(BuildContext context) {
+    final showChrome = !schematicFullscreen;
+
     return Scaffold(
       backgroundColor: AppColors.pcbBackground,
       body: Container(
@@ -69,44 +103,35 @@ class _SchematicMainScreenState
         ),
         child: Column(
           children: [
-            // =====================================================
-            // WINDOW BAR + MENU BAR
-            // =====================================================
-
-            if (!schematicFullscreen) ...[
+            if (showChrome)
               const SizedBox(
-                height: 50,
+                height: windowBarHeight,
                 child: CustomWindowBar(),
               ),
 
+            if (showChrome)
               SizedBox(
-                height: 44,
+                height: menuBarHeight,
                 child: MenuBarWidget(
-                  onMenuChanged: (menu) {
-                    if (menu == 'File') {
-                      _openFileView();
-                    }
-                  },
+                  activeMenu: activeMenu,
+                  onMenuChanged: _onMenuChanged,
                   onFullscreenPressed:
                       _enterSchematicFullscreen,
                 ),
               ),
-            ],
-
-            // =====================================================
-            // MAIN AREA
-            // =====================================================
 
             Expanded(
               child: ClipRect(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (
-                    Widget child,
-                    Animation<double> animation,
-                  ) {
+                  duration: const Duration(
+                    milliseconds: 200,
+                  ),
+                  switchInCurve:
+                      Curves.easeOutCubic,
+                  switchOutCurve:
+                      Curves.easeInCubic,
+                  transitionBuilder:
+                      (child, animation) {
                     return FadeTransition(
                       opacity: animation,
                       child: child,
@@ -122,14 +147,12 @@ class _SchematicMainScreenState
     );
   }
 
-  // =============================================================
-  // MAIN CONTENT
-  // =============================================================
-
   Widget _buildMainContent() {
     if (schematicFullscreen) {
       return _FullscreenSchematic(
-        key: const ValueKey('fullscreen-schematic'),
+        key: const ValueKey(
+          'fullscreen-schematic',
+        ),
         onExit: _exitSchematicFullscreen,
       );
     }
@@ -141,17 +164,29 @@ class _SchematicMainScreenState
       );
     }
 
-    return const SchematicSheet(
+    return const _SchematicContent(
       key: ValueKey('schematic'),
     );
   }
 }
 
-// ============================================================================
-// FULLSCREEN SCHEMATIC
-// ============================================================================
+class _SchematicContent extends StatelessWidget {
+  const _SchematicContent({
+    super.key,
+  });
 
-class _FullscreenSchematic extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const ClipRect(
+      child: SizedBox.expand(
+        child: SchematicSheet(),
+      ),
+    );
+  }
+}
+
+class _FullscreenSchematic
+    extends StatelessWidget {
   final VoidCallback onExit;
 
   const _FullscreenSchematic({
@@ -166,10 +201,6 @@ class _FullscreenSchematic extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           const SchematicSheet(),
-
-          // =====================================================
-          // EXIT BUTTON
-          // =====================================================
 
           Positioned(
             top: 8,
@@ -187,11 +218,8 @@ class _FullscreenSchematic extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// FULLSCREEN EXIT BUTTON
-// ============================================================================
-
-class _FullscreenExitButton extends StatefulWidget {
+class _FullscreenExitButton
+    extends StatefulWidget {
   final VoidCallback onPressed;
 
   const _FullscreenExitButton({
@@ -212,28 +240,28 @@ class _FullscreenExitButtonState
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) {
-        setState(() {
-          hovered = true;
-        });
+        setState(() => hovered = true);
       },
       onExit: (_) {
-        setState(() {
-          hovered = false;
-        });
+        setState(() => hovered = false);
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(
+            milliseconds: 160,
+          ),
           curve: Curves.easeOutCubic,
           width: hovered ? 42 : 36,
           height: hovered ? 30 : 26,
           decoration: BoxDecoration(
             color: hovered
-                ? AppColors.slateGray.withOpacity(0.96)
+                ? AppColors.slateGray
+                    .withOpacity(0.96)
                 : Colors.white.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(7),
+            borderRadius:
+                BorderRadius.circular(7),
             border: Border.all(
               color: hovered
                   ? AppColors.signalOrange
@@ -243,7 +271,8 @@ class _FullscreenExitButtonState
             boxShadow: [
               BoxShadow(
                 color: hovered
-                    ? AppColors.signalOrange.withOpacity(0.20)
+                    ? AppColors.signalOrange
+                        .withOpacity(0.20)
                     : Colors.black.withOpacity(0.14),
                 blurRadius: hovered ? 12 : 7,
                 offset: const Offset(0, 3),
@@ -251,8 +280,10 @@ class _FullscreenExitButtonState
             ],
           ),
           child: AnimatedScale(
-            duration: const Duration(milliseconds: 160),
-            scale: hovered ? 1.08 : 1.0,
+            duration: const Duration(
+              milliseconds: 140,
+            ),
+            scale: hovered ? 1.08 : 1,
             child: Icon(
               Icons.keyboard_arrow_down,
               size: 21,
