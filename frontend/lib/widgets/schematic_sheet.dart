@@ -5,8 +5,30 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
+enum SchematicUnit {
+  inch,
+  mm,
+}
+
+enum SchematicGridType {
+  dot,
+  grid,
+  none,
+}
+
+enum SchematicHighlightMode {
+  highlight,
+  unhighlight,
+  hoverWire,
+}
+
 class SchematicSheet extends StatefulWidget {
-  const SchematicSheet({super.key});
+  final ValueChanged<String>? onCommand;
+
+  const SchematicSheet({
+    super.key,
+    this.onCommand,
+  });
 
   @override
   State<SchematicSheet> createState() => _SchematicSheetState();
@@ -17,23 +39,34 @@ class _SchematicSheetState extends State<SchematicSheet> {
   // SHEET / WORLD
   // ==========================================================================
 
-  static const double sheetWidth = 2600;
-  static const double sheetHeight = 1650;
+  static const double sheetWidth = 2400;
+  static const double sheetHeight = 1450;
 
   static const double sheetLeft = 300;
-  static const double sheetTop = 210;
+  static const double sheetTop = 180;
 
   static const double pixelsPerMm = 5;
 
   static const double minZoom = 0.12;
   static const double maxZoom = 16;
 
-  static const double rulerSize = 32;
+  static const double rulerSize = 30;
 
-  static const double worldWidth = 3300;
-  static const double worldHeight = 2150;
+  static const double worldWidth = 3000;
+  static const double worldHeight = 1900;
 
-  static const double gridMm = 1;
+  // ==========================================================================
+  // VIEW STATE
+  // ==========================================================================
+
+  SchematicUnit _unit = SchematicUnit.mm;
+
+  double _gridMm = 1.0;
+
+  SchematicGridType _gridType = SchematicGridType.grid;
+
+  SchematicHighlightMode _highlightMode =
+      SchematicHighlightMode.unhighlight;
 
   // ==========================================================================
   // CONTROLLER
@@ -54,8 +87,10 @@ class _SchematicSheetState extends State<SchematicSheet> {
   bool _mouseInside = false;
   bool _initialised = false;
 
+  bool _fullScreen = false;
+
   // ==========================================================================
-  // PAN
+  // CUSTOM PAN
   // ==========================================================================
 
   int? _panPointer;
@@ -71,6 +106,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
   @override
   void initState() {
     super.initState();
+
     _controller.addListener(_onTransformChanged);
   }
 
@@ -78,6 +114,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
   void dispose() {
     _controller.removeListener(_onTransformChanged);
     _controller.dispose();
+
     super.dispose();
   }
 
@@ -130,23 +167,182 @@ class _SchematicSheetState extends State<SchematicSheet> {
   }
 
   // ==========================================================================
+  // VIEW COMMANDS
+  // ==========================================================================
+
+  void executeViewCommand(String command) {
+    switch (command) {
+      case 'Zoom In':
+        _zoomIn();
+        break;
+
+      case 'Zoom Out':
+        _zoomOut();
+        break;
+
+      case 'Fit All in Window':
+        _fitFromContext();
+        break;
+
+      case 'Fit Selection View':
+        _fitSelectionView();
+        break;
+
+      case 'Fit Area Selection View':
+        _fitAreaSelectionView();
+        break;
+
+      case 'Full Screen':
+        _toggleFullScreen();
+        break;
+
+      case 'Unit: Inch':
+        _setUnit(SchematicUnit.inch);
+        break;
+
+      case 'Unit: mm':
+        _setUnit(SchematicUnit.mm);
+        break;
+
+      case 'Grid Size: 0.1 inch':
+        _setGridFromInch(0.1);
+        break;
+
+      case 'Grid Size: 0.05 inch':
+        _setGridFromInch(0.05);
+        break;
+
+      case 'Grid Size: 0.02 inch':
+        _setGridFromInch(0.02);
+        break;
+
+      case 'Grid Size: 0.01 inch':
+        _setGridFromInch(0.01);
+        break;
+
+      case 'Grid Type: Grid Dot':
+        _setGridType(SchematicGridType.dot);
+        break;
+
+      case 'Grid Type: Grid':
+        _setGridType(SchematicGridType.grid);
+        break;
+
+      case 'Grid Type: None':
+        _setGridType(SchematicGridType.none);
+        break;
+
+      case 'Highlight Net: Highlight Net':
+        _setHighlightMode(
+          SchematicHighlightMode.highlight,
+        );
+        break;
+
+      case 'Highlight Net: Unhighlight Net':
+        _setHighlightMode(
+          SchematicHighlightMode.unhighlight,
+        );
+        break;
+
+      case 'Highlight Net: Highlight Net While Hovering Wire':
+        _setHighlightMode(
+          SchematicHighlightMode.hoverWire,
+        );
+        break;
+    }
+
+    widget.onCommand?.call(command);
+  }
+
+  // ==========================================================================
+  // UNIT
+  // ==========================================================================
+
+  void _setUnit(SchematicUnit unit) {
+    if (_unit == unit) {
+      return;
+    }
+
+    setState(() {
+      _unit = unit;
+    });
+  }
+
+  // ==========================================================================
+  // GRID
+  // ==========================================================================
+
+  void _setGridFromInch(double inch) {
+    final mm = inch * 25.4;
+
+    setState(() {
+      _gridMm = mm;
+    });
+  }
+
+  void _setGridType(SchematicGridType type) {
+    if (_gridType == type) {
+      return;
+    }
+
+    setState(() {
+      _gridType = type;
+    });
+  }
+
+  // ==========================================================================
+  // HIGHLIGHT
+  // ==========================================================================
+
+  void _setHighlightMode(SchematicHighlightMode mode) {
+    if (_highlightMode == mode) {
+      return;
+    }
+
+    setState(() {
+      _highlightMode = mode;
+    });
+  }
+
+  // ==========================================================================
+  // DISPLAY VALUES
+  // ==========================================================================
+
+  String _formatGridValue() {
+    if (_unit == SchematicUnit.mm) {
+      if ((_gridMm - _gridMm.round()).abs() < 0.0001) {
+        return '${_gridMm.round()} mm';
+      }
+
+      return '${_gridMm.toStringAsFixed(3)} mm'.replaceFirst(
+        RegExp(r'0+ mm$'),
+        ' mm',
+      );
+    }
+
+    final inch = _gridMm / 25.4;
+
+    return '${inch.toStringAsFixed(2)} inch';
+  }
+
+  // ==========================================================================
   // TRANSFORM LISTENER
   // ==========================================================================
 
   void _onTransformChanged() {
-    _updateMouseWorld();
-
-    if (!mounted) {
-      return;
-    }
-
     final scale = _scale;
 
-    if ((scale - _zoom).abs() > 0.00001) {
-      setState(() {
-        _zoom = scale;
-      });
-    } else {
+    if ((scale - _zoom).abs() > 0.0001) {
+      if (mounted) {
+        setState(() {
+          _zoom = scale;
+        });
+      }
+    }
+
+    _updateMouseWorld();
+
+    if (mounted) {
       setState(() {});
     }
   }
@@ -155,9 +351,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
   // INITIAL VIEW
   // ==========================================================================
 
-  void _setupInitialView(
-    BoxConstraints constraints,
-  ) {
+  void _setupInitialView(BoxConstraints constraints) {
     if (_initialised) {
       return;
     }
@@ -175,8 +369,8 @@ class _SchematicSheetState extends State<SchematicSheet> {
       }
 
       _fitPage(
-        math.max(0, constraints.maxWidth - rulerSize),
-        math.max(0, constraints.maxHeight - rulerSize),
+        constraints.maxWidth - rulerSize,
+        constraints.maxHeight - rulerSize,
       );
     });
   }
@@ -194,8 +388,8 @@ class _SchematicSheetState extends State<SchematicSheet> {
       return;
     }
 
-    const horizontalPadding = 50.0;
-    const verticalPadding = 50.0;
+    const horizontalPadding = 80.0;
+    const verticalPadding = 80.0;
 
     final availableWidth = math.max(
       100,
@@ -210,9 +404,13 @@ class _SchematicSheetState extends State<SchematicSheet> {
     final scaleX = availableWidth / sheetWidth;
     final scaleY = availableHeight / sheetHeight;
 
-    final scale = math.min(scaleX, scaleY)
-        .clamp(minZoom, 2.5)
-        .toDouble();
+    final scale = math.min(
+      scaleX,
+      scaleY,
+    ).clamp(
+      minZoom,
+      2.5,
+    ).toDouble();
 
     final x =
         (viewportWidth - sheetWidth * scale) / 2 -
@@ -238,9 +436,37 @@ class _SchematicSheetState extends State<SchematicSheet> {
     final size = renderObject.size;
 
     _fitPage(
-      math.max(0, size.width - rulerSize),
-      math.max(0, size.height - rulerSize),
+      size.width - rulerSize,
+      size.height - rulerSize,
     );
+  }
+
+  void _fitSelectionView() {
+    // Hook for actual selection engine.
+    // Until selection geometry exists, safely
+    // fall back to fitting the complete sheet.
+    _fitFromContext();
+  }
+
+  void _fitAreaSelectionView() {
+    // Hook for actual area-selection engine.
+    // Until area geometry exists, safely
+    // fall back to fitting the complete sheet.
+    _fitFromContext();
+  }
+
+  // ==========================================================================
+  // FULL SCREEN
+  // ==========================================================================
+
+  void _toggleFullScreen() {
+    _fullScreen = !_fullScreen;
+
+    // The parent application can listen to this
+    // command and control the actual window/fullscreen.
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   // ==========================================================================
@@ -253,22 +479,18 @@ class _SchematicSheetState extends State<SchematicSheet> {
   ) {
     final currentScale = _scale;
 
-    if (!currentScale.isFinite ||
-        currentScale <= 0 ||
-        !factor.isFinite ||
-        factor <= 0) {
+    if (currentScale <= 0) {
       return;
     }
 
     final targetScale = (currentScale * factor)
-        .clamp(minZoom, maxZoom)
+        .clamp(
+          minZoom,
+          maxZoom,
+        )
         .toDouble();
 
     final actualFactor = targetScale / currentScale;
-
-    if ((actualFactor - 1).abs() < 0.00001) {
-      return;
-    }
 
     final oldTranslation = _translation;
 
@@ -284,30 +506,39 @@ class _SchematicSheetState extends State<SchematicSheet> {
 
   void _zoomIn() {
     _zoomAround(
-      _mouseInside
-          ? _mousePosition
-          : _viewportCenter(),
-      1.18,
+      _mouseInside ? _mousePosition : _viewportCenter(),
+      1.2,
     );
   }
 
   void _zoomOut() {
     _zoomAround(
-      _mouseInside
-          ? _mousePosition
-          : _viewportCenter(),
-      1 / 1.18,
+      _mouseInside ? _mousePosition : _viewportCenter(),
+      1 / 1.2,
     );
   }
 
   void _resetZoom() {
-    final focal = _mouseInside
-        ? _mousePosition
-        : _viewportCenter();
+    final focal =
+        _mouseInside ? _mousePosition : _viewportCenter();
 
-    _zoomAround(
-      focal,
-      1 / _scale,
+    final currentScale = _scale;
+
+    if (currentScale <= 0) {
+      return;
+    }
+
+    final factor = 1 / currentScale;
+
+    final oldTranslation = _translation;
+
+    final newTranslation =
+        focal -
+        (focal - oldTranslation) * factor;
+
+    _controller.value = _makeMatrix(
+      1,
+      newTranslation,
     );
   }
 
@@ -321,10 +552,8 @@ class _SchematicSheetState extends State<SchematicSheet> {
     final size = renderObject.size;
 
     return Offset(
-      rulerSize +
-          math.max(0, size.width - rulerSize) / 2,
-      rulerSize +
-          math.max(0, size.height - rulerSize) / 2,
+      rulerSize + (size.width - rulerSize) / 2,
+      rulerSize + (size.height - rulerSize) / 2,
     );
   }
 
@@ -372,19 +601,8 @@ class _SchematicSheetState extends State<SchematicSheet> {
   }
 
   // ==========================================================================
-  // MOUSE / TRACKPAD PAN
+  // PAN
   // ==========================================================================
-
-  void _panBy(Offset delta) {
-    if (delta == Offset.zero) {
-      return;
-    }
-
-    _controller.value = _makeMatrix(
-      _scale,
-      _translation + delta,
-    );
-  }
 
   void _onPointerDown(PointerDownEvent event) {
     final buttons = event.buttons;
@@ -399,6 +617,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
     _panPointer = event.pointer;
     _panStart = event.localPosition;
     _panStartTranslation = _translation;
+
     _panMode = true;
 
     if (mounted) {
@@ -418,9 +637,12 @@ class _SchematicSheetState extends State<SchematicSheet> {
 
     final delta = event.localPosition - _panStart!;
 
+    final translation =
+        _panStartTranslation! + delta;
+
     _controller.value = _makeMatrix(
       _scale,
-      _panStartTranslation! + delta,
+      translation,
     );
   }
 
@@ -445,7 +667,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
     _panStart = null;
     _panStartTranslation = null;
 
-    if (mounted) {
+    if (_panMode && mounted) {
       setState(() {
         _panMode = false;
       });
@@ -455,7 +677,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
   }
 
   // ==========================================================================
-  // TRACKPAD + MOUSE WHEEL
+  // MOUSE WHEEL / TRACKPAD
   // ==========================================================================
 
   void _onPointerSignal(PointerSignalEvent event) {
@@ -463,49 +685,21 @@ class _SchematicSheetState extends State<SchematicSheet> {
       return;
     }
 
-    final delta = event.scrollDelta;
+    final delta = event.scrollDelta.dy;
 
-    if (delta == Offset.zero) {
+    if (delta == 0) {
       return;
     }
 
-    // ------------------------------------------------------------------------
-    // Horizontal two-finger trackpad gesture.
-    //
-    // Pan only horizontally. This avoids accidentally turning normal
-    // horizontal trackpad movement into zoom.
-    // ------------------------------------------------------------------------
+    final factor = math.pow(
+      1.10,
+      -delta / 40,
+    ).toDouble();
 
-    if (delta.dx.abs() > delta.dy.abs() &&
-        delta.dx.abs() > 0.25) {
-      _panBy(
-        Offset(
-          -delta.dx,
-          0,
-        ),
-      );
-
-      return;
-    }
-
-    // ------------------------------------------------------------------------
-    // Vertical trackpad / mouse-wheel gesture.
-    //
-    // Small exponential factor keeps the zoom smooth instead of jumping.
-    // ------------------------------------------------------------------------
-
-    if (delta.dy.abs() > 0.25) {
-      final factor = math.exp(
-        -delta.dy * 0.0105,
-      );
-
-      _zoomAround(
-        _mouseInside
-            ? _mousePosition
-            : _viewportCenter(),
-        factor.clamp(0.92, 1.08),
-      );
-    }
+    _zoomAround(
+      _mousePosition,
+      factor,
+    );
   }
 
   // ==========================================================================
@@ -524,11 +718,11 @@ class _SchematicSheetState extends State<SchematicSheet> {
           _setupInitialView(constraints);
 
           return Stack(
-            clipBehavior: Clip.none,
+            clipBehavior: Clip.hardEdge,
             children: [
-              // =================================================================
+              // ===============================================================
               // MAIN CANVAS
-              // =================================================================
+              // ===============================================================
 
               Positioned(
                 left: rulerSize,
@@ -548,88 +742,108 @@ class _SchematicSheetState extends State<SchematicSheet> {
                     onPointerUp: _onPointerUp,
                     onPointerCancel: _onPointerCancel,
                     onPointerSignal: _onPointerSignal,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CustomPaint(
-                          painter: EdaInfiniteGridPainter(
-                            transform: _controller.value,
-                            pixelsPerMm: pixelsPerMm,
-                            gridMm: gridMm,
-                          ),
-                        ),
+                    child: ClipRect(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        clipBehavior: Clip.hardEdge,
+                        children: [
+                          // =================================================
+                          // GRID
+                          // =================================================
 
-                        Transform(
-                          transform: _controller.value,
-                          alignment: Alignment.topLeft,
-                          child: RepaintBoundary(
-                            child: SizedBox(
-                              width: worldWidth,
-                              height: worldHeight,
+                          CustomPaint(
+                            painter: EdaInfiniteGridPainter(
+                              transform: _controller.value,
+                              pixelsPerMm: pixelsPerMm,
+                              gridMm: _gridMm,
+                              gridType: _gridType,
+                            ),
+                          ),
+
+                          // =================================================
+                          // SHEET
+                          // =================================================
+
+                          ClipRect(
+                            child: Transform(
+                              transform: _controller.value,
+                              alignment: Alignment.topLeft,
+                              child: RepaintBoundary(
+                                child: SizedBox(
+                                  width: worldWidth,
+                                  height: worldHeight,
+                                  child: CustomPaint(
+                                    painter:
+                                        EdaSchematicSheetPainter(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // =================================================
+                          // CROSSHAIR
+                          // =================================================
+
+                          if (_mouseInside)
+                            IgnorePointer(
                               child: CustomPaint(
-                                painter:
-                                    EdaSchematicSheetPainter(),
+                                painter: EdaCrosshairPainter(
+                                  position: _mousePosition,
+                                  color: AppColors.signalOrange,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-
-                        if (_mouseInside)
-                          IgnorePointer(
-                            child: CustomPaint(
-                              painter: EdaCrosshairPainter(
-                                position: _mousePosition,
-                                color:
-                                    AppColors.signalOrange,
-                              ),
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              // =================================================================
+              // ===============================================================
               // TOP RULER
-              // =================================================================
+              // ===============================================================
 
               Positioned(
                 left: rulerSize,
                 right: 0,
                 top: 0,
                 height: rulerSize,
-                child: CustomPaint(
-                  painter:
-                      EdaHorizontalRulerPainter(
-                    transform: _controller.value,
-                    mouseWorld: _mouseWorld,
-                    pixelsPerMm: pixelsPerMm,
+                child: ClipRect(
+                  child: CustomPaint(
+                    painter: EdaHorizontalRulerPainter(
+                      transform: _controller.value,
+                      mouseWorld: _mouseWorld,
+                      pixelsPerMm: pixelsPerMm,
+                    ),
                   ),
                 ),
               ),
 
-              // =================================================================
+              // ===============================================================
               // LEFT RULER
-              // =================================================================
+              // ===============================================================
 
               Positioned(
                 left: 0,
                 top: rulerSize,
                 width: rulerSize,
                 bottom: 0,
-                child: CustomPaint(
-                  painter: EdaVerticalRulerPainter(
-                    transform: _controller.value,
-                    mouseWorld: _mouseWorld,
-                    pixelsPerMm: pixelsPerMm,
+                child: ClipRect(
+                  child: CustomPaint(
+                    painter: EdaVerticalRulerPainter(
+                      transform: _controller.value,
+                      mouseWorld: _mouseWorld,
+                      pixelsPerMm: pixelsPerMm,
+                    ),
                   ),
                 ),
               ),
 
-              // =================================================================
-              // CORNER
-              // =================================================================
+              // ===============================================================
+              // RULER CORNER
+              // ===============================================================
 
               Positioned(
                 left: 0,
@@ -658,13 +872,13 @@ class _SchematicSheetState extends State<SchematicSheet> {
                 ),
               ),
 
-              // =================================================================
-              // TOOLBAR - RIGHT SIDE
-              // =================================================================
+              // ===============================================================
+              // TOOLBAR
+              // ===============================================================
 
               Positioned(
-                right: 20,
-                top: 18,
+                right: 18,
+                top: 50,
                 child: _CanvasToolbar(
                   zoom: _zoom,
                   onZoomIn: _zoomIn,
@@ -674,23 +888,17 @@ class _SchematicSheetState extends State<SchematicSheet> {
                 ),
               ),
 
-              // =================================================================
+              // ===============================================================
               // STATUS
-              // =================================================================
+              // ===============================================================
 
               Positioned(
-                left: 20,
-                bottom: 14,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: math.max(
-                      160,
-                      constraints.maxWidth - 40,
-                    ),
-                  ),
-                  child: _CanvasStatus(
-                    mouseWorld: _mouseWorld,
-                  ),
+                left: 50,
+                bottom: 5,
+                child: _CanvasStatus(
+                  mouseWorld: _mouseWorld,
+                  gridMm: _gridMm,
+                  unit: _unit,
                 ),
               ),
             ],
@@ -702,237 +910,213 @@ class _SchematicSheetState extends State<SchematicSheet> {
 }
 
 // ============================================================================
-// INFINITE GRID
+// INFINITE GRID PAINTER
 // ============================================================================
 
 class EdaInfiniteGridPainter extends CustomPainter {
   final Matrix4 transform;
   final double pixelsPerMm;
   final double gridMm;
+  final SchematicGridType gridType;
 
   EdaInfiniteGridPainter({
     required this.transform,
     required this.pixelsPerMm,
     required this.gridMm,
+    required this.gridType,
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
     canvas.drawRect(
       Offset.zero & size,
       Paint()..color = const Color(0xFFE0E4E7),
     );
 
+    if (gridType == SchematicGridType.none) {
+      return;
+    }
+
     final scale = transform.getMaxScaleOnAxis();
 
-    if (!scale.isFinite || scale <= 0) {
+    if (scale <= 0 || !scale.isFinite) {
       return;
     }
 
     final translation = transform.getTranslation();
 
-    final firstWorldX =
-        -translation.x / scale;
+    final firstWorldX = -translation.x / scale;
     final lastWorldX =
         (size.width - translation.x) / scale;
 
-    final firstWorldY =
-        -translation.y / scale;
+    final firstWorldY = -translation.y / scale;
     final lastWorldY =
         (size.height - translation.y) / scale;
 
-    final minorWorldSpacing =
-        pixelsPerMm * gridMm;
+    // ============================================================
+    // SELECTED GRID
+    // ============================================================
 
-    final majorWorldSpacing =
-        pixelsPerMm * 10;
+    final spacing = pixelsPerMm * gridMm;
+    final screenSpacing = spacing * scale;
 
-    final minorScreenSpacing =
-        minorWorldSpacing * scale;
+    if (spacing <= 0) {
+      return;
+    }
 
-    final majorScreenSpacing =
-        majorWorldSpacing * scale;
+    // ============================================================
+    // DOT GRID
+    // ============================================================
 
-    // ------------------------------------------------------------------------
-    // MINOR
-    // ------------------------------------------------------------------------
-
-    if (minorScreenSpacing >= 5 &&
-        minorScreenSpacing <= 80) {
-      final opacity =
-          minorScreenSpacing < 8
-              ? 0.28
-              : minorScreenSpacing < 15
-                  ? 0.38
-                  : 0.52;
+    if (gridType == SchematicGridType.dot) {
+      if (screenSpacing < 4 || screenSpacing > 70) {
+        return;
+      }
 
       final paint = Paint()
-        ..color = const Color(0xFFB7BEC4)
-            .withOpacity(opacity)
-        ..strokeWidth =
-            minorScreenSpacing < 8
-                ? 0.4
-                : 0.55;
+        ..color = const Color(0xFF929BA1).withOpacity(
+          screenSpacing < 8 ? 0.40 : 0.55,
+        );
 
       final startX =
-          (firstWorldX / minorWorldSpacing)
-                  .floor() *
-              minorWorldSpacing;
+          (firstWorldX / spacing).floor() * spacing;
 
       final startY =
-          (firstWorldY / minorWorldSpacing)
-                  .floor() *
-              minorWorldSpacing;
+          (firstWorldY / spacing).floor() * spacing;
+
+      final radius = screenSpacing < 8 ? 0.7 : 1.0;
 
       for (
         double x = startX;
         x <= lastWorldX;
-        x += minorWorldSpacing
+        x += spacing
       ) {
-        final sx =
-            x * scale + translation.x;
-
-        canvas.drawLine(
-          Offset(sx, 0),
-          Offset(sx, size.height),
-          paint,
-        );
-      }
-
-      for (
-        double y = startY;
-        y <= lastWorldY;
-        y += minorWorldSpacing
-      ) {
-        final sy =
-            y * scale + translation.y;
-
-        canvas.drawLine(
-          Offset(0, sy),
-          Offset(size.width, sy),
-          paint,
-        );
-      }
-    }
-
-    // ------------------------------------------------------------------------
-    // MAJOR
-    // ------------------------------------------------------------------------
-
-    if (majorScreenSpacing >= 8) {
-      final paint = Paint()
-        ..color = const Color(0xFF929BA1)
-            .withOpacity(
-          majorScreenSpacing < 25
-              ? 0.40
-              : 0.58,
-        )
-        ..strokeWidth =
-            majorScreenSpacing < 20
-                ? 0.6
-                : 0.85;
-
-      final startX =
-          (firstWorldX / majorWorldSpacing)
-                  .floor() *
-              majorWorldSpacing;
-
-      final startY =
-          (firstWorldY / majorWorldSpacing)
-                  .floor() *
-              majorWorldSpacing;
-
-      for (
-        double x = startX;
-        x <= lastWorldX;
-        x += majorWorldSpacing
-      ) {
-        final sx =
-            x * scale + translation.x;
-
-        canvas.drawLine(
-          Offset(sx, 0),
-          Offset(sx, size.height),
-          paint,
-        );
-      }
-
-      for (
-        double y = startY;
-        y <= lastWorldY;
-        y += majorWorldSpacing
-      ) {
-        final sy =
-            y * scale + translation.y;
-
-        canvas.drawLine(
-          Offset(0, sy),
-          Offset(size.width, sy),
-          paint,
-        );
-      }
-    }
-
-    // ------------------------------------------------------------------------
-    // MICRO
-    // ------------------------------------------------------------------------
-
-    if (scale >= 3) {
-      const microMm = 0.5;
-
-      final spacing =
-          pixelsPerMm * microMm;
-
-      final screenSpacing =
-          spacing * scale;
-
-      if (screenSpacing >= 3 &&
-          screenSpacing <= 80) {
-        final paint = Paint()
-          ..color = const Color(0xFFD0D5D9)
-              .withOpacity(0.45)
-          ..strokeWidth = 0.3;
-
-        final startX =
-            (firstWorldX / spacing)
-                    .floor() *
-                spacing;
-
-        final startY =
-            (firstWorldY / spacing)
-                    .floor() *
-                spacing;
-
-        for (
-          double x = startX;
-          x <= lastWorldX;
-          x += spacing
-        ) {
-          final sx =
-              x * scale + translation.x;
-
-          canvas.drawLine(
-            Offset(sx, 0),
-            Offset(sx, size.height),
-            paint,
-          );
-        }
+        final sx = x * scale + translation.x;
 
         for (
           double y = startY;
           y <= lastWorldY;
           y += spacing
         ) {
-          final sy =
-              y * scale + translation.y;
+          final sy = y * scale + translation.y;
 
-          canvas.drawLine(
-            Offset(0, sy),
-            Offset(size.width, sy),
+          canvas.drawCircle(
+            Offset(sx, sy),
+            radius,
             paint,
           );
         }
       }
+
+      return;
+    }
+
+    // ============================================================
+    // NORMAL GRID
+    // ============================================================
+
+    if (screenSpacing >= 3 && screenSpacing <= 100) {
+      final opacity = screenSpacing < 7
+          ? 0.25
+          : screenSpacing < 15
+              ? 0.35
+              : 0.48;
+
+      final paint = Paint()
+        ..color = const Color(0xFFB7BEC4).withOpacity(opacity)
+        ..strokeWidth = screenSpacing < 8 ? 0.4 : 0.55;
+
+      final startX =
+          (firstWorldX / spacing).floor() * spacing;
+
+      final startY =
+          (firstWorldY / spacing).floor() * spacing;
+
+      for (
+        double x = startX;
+        x <= lastWorldX;
+        x += spacing
+      ) {
+        final sx = x * scale + translation.x;
+
+        canvas.drawLine(
+          Offset(sx, 0),
+          Offset(sx, size.height),
+          paint,
+        );
+      }
+
+      for (
+        double y = startY;
+        y <= lastWorldY;
+        y += spacing
+      ) {
+        final sy = y * scale + translation.y;
+
+        canvas.drawLine(
+          Offset(0, sy),
+          Offset(size.width, sy),
+          paint,
+        );
+      }
+    }
+
+    // ============================================================
+    // MAJOR GRID
+    // ============================================================
+
+    final majorWorldSpacing = spacing * 10;
+    final majorScreenSpacing =
+        majorWorldSpacing * scale;
+
+    if (majorScreenSpacing < 8) {
+      return;
+    }
+
+    final majorPaint = Paint()
+      ..color = const Color(0xFF929BA1).withOpacity(
+        majorScreenSpacing < 25 ? 0.34 : 0.50,
+      )
+      ..strokeWidth =
+          majorScreenSpacing < 20 ? 0.6 : 0.85;
+
+    final majorStartX =
+        (firstWorldX / majorWorldSpacing).floor() *
+        majorWorldSpacing;
+
+    final majorStartY =
+        (firstWorldY / majorWorldSpacing).floor() *
+        majorWorldSpacing;
+
+    for (
+      double x = majorStartX;
+      x <= lastWorldX;
+      x += majorWorldSpacing
+    ) {
+      final sx = x * scale + translation.x;
+
+      canvas.drawLine(
+        Offset(sx, 0),
+        Offset(sx, size.height),
+        majorPaint,
+      );
+    }
+
+    for (
+      double y = majorStartY;
+      y <= lastWorldY;
+      y += majorWorldSpacing
+    ) {
+      final sy = y * scale + translation.y;
+
+      canvas.drawLine(
+        Offset(0, sy),
+        Offset(size.width, sy),
+        majorPaint,
+      );
     }
   }
 
@@ -942,7 +1126,8 @@ class EdaInfiniteGridPainter extends CustomPainter {
   ) {
     return oldDelegate.transform != transform ||
         oldDelegate.pixelsPerMm != pixelsPerMm ||
-        oldDelegate.gridMm != gridMm;
+        oldDelegate.gridMm != gridMm ||
+        oldDelegate.gridType != gridType;
   }
 }
 
@@ -952,7 +1137,10 @@ class EdaInfiniteGridPainter extends CustomPainter {
 
 class EdaSchematicSheetPainter extends CustomPainter {
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
     final sheet = Rect.fromLTWH(
       _SchematicSheetState.sheetLeft,
       _SchematicSheetState.sheetTop,
@@ -1018,10 +1206,6 @@ class EdaSchematicSheetPainter extends CustomPainter {
     canvas.drawRect(sheet.deflate(18), technical);
   }
 
-  // ==========================================================================
-  // NUMERIC ZONES ONLY
-  // ==========================================================================
-
   void _drawZones(
     Canvas canvas,
     Rect sheet,
@@ -1030,11 +1214,11 @@ class EdaSchematicSheetPainter extends CustomPainter {
 
     final paint = Paint()
       ..color = const Color(0xFF656C72)
-      ..strokeWidth = 0.8;
+      ..strokeWidth = 0.75;
 
     const zoneWidth = 150.0;
+    const zoneHeight = 145.0;
 
-    // Top numbers.
     int top = 1;
 
     for (
@@ -1044,7 +1228,7 @@ class EdaSchematicSheetPainter extends CustomPainter {
     ) {
       canvas.drawLine(
         Offset(x, frame.top),
-        Offset(x, frame.top + 24),
+        Offset(x, frame.top + 20),
         paint,
       );
 
@@ -1060,7 +1244,6 @@ class EdaSchematicSheetPainter extends CustomPainter {
       top++;
     }
 
-    // Bottom numbers.
     int bottom = 1;
 
     for (
@@ -1069,7 +1252,7 @@ class EdaSchematicSheetPainter extends CustomPainter {
       x += zoneWidth
     ) {
       canvas.drawLine(
-        Offset(x, frame.bottom - 24),
+        Offset(x, frame.bottom - 20),
         Offset(x, frame.bottom),
         paint,
       );
@@ -1079,17 +1262,73 @@ class EdaSchematicSheetPainter extends CustomPainter {
         '$bottom',
         Offset(
           x - zoneWidth / 2,
-          frame.bottom - 22,
+          frame.bottom - 18,
         ),
       );
 
       bottom++;
     }
-  }
 
-  // ==========================================================================
-  // TITLE BLOCK
-  // ==========================================================================
+    const letters = [
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+    ];
+
+    int row = 0;
+
+    for (
+      double y = frame.top + zoneHeight;
+      y < frame.bottom;
+      y += zoneHeight
+    ) {
+      final index = row.clamp(
+        0,
+        letters.length - 1,
+      );
+
+      final label = letters[index];
+
+      canvas.drawLine(
+        Offset(frame.left, y),
+        Offset(frame.left + 20, y),
+        paint,
+      );
+
+      canvas.drawLine(
+        Offset(frame.right - 20, y),
+        Offset(frame.right, y),
+        paint,
+      );
+
+      _zoneText(
+        canvas,
+        label,
+        Offset(
+          frame.left + 5,
+          y - zoneHeight / 2 - 5,
+        ),
+      );
+
+      _zoneText(
+        canvas,
+        label,
+        Offset(
+          frame.right - 15,
+          y - zoneHeight / 2 - 5,
+        ),
+      );
+
+      row++;
+    }
+  }
 
   void _drawTitleBlock(
     Canvas canvas,
@@ -1097,8 +1336,8 @@ class EdaSchematicSheetPainter extends CustomPainter {
   ) {
     final frame = sheet.deflate(13);
 
-    const width = 760.0;
-    const height = 300.0;
+    const width = 690.0;
+    const height = 275.0;
 
     final block = Rect.fromLTWH(
       frame.right - width,
@@ -1118,14 +1357,9 @@ class EdaSchematicSheetPainter extends CustomPainter {
 
     canvas.drawRect(block, border);
 
-    final row1 =
-        block.top + block.height * 0.30;
-
-    final row2 =
-        block.top + block.height * 0.58;
-
-    final row3 =
-        block.top + block.height * 0.80;
+    final row1 = block.top + block.height * 0.30;
+    final row2 = block.top + block.height * 0.58;
+    final row3 = block.top + block.height * 0.80;
 
     canvas.drawLine(
       Offset(block.left, row1),
@@ -1145,11 +1379,8 @@ class EdaSchematicSheetPainter extends CustomPainter {
       line,
     );
 
-    final col1 =
-        block.left + block.width * 0.52;
-
-    final col2 =
-        block.left + block.width * 0.76;
+    final col1 = block.left + block.width * 0.52;
+    final col2 = block.left + block.width * 0.76;
 
     canvas.drawLine(
       Offset(col1, row2),
@@ -1266,10 +1497,6 @@ class EdaSchematicSheetPainter extends CustomPainter {
     );
   }
 
-  // ==========================================================================
-  // TEXT
-  // ==========================================================================
-
   void _zoneText(
     Canvas canvas,
     String text,
@@ -1279,9 +1506,9 @@ class EdaSchematicSheetPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: const TextStyle(
-          color: Color(0xFF444B50),
-          fontSize: 19,
-          fontWeight: FontWeight.w700,
+          color: Color(0xFF555B60),
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -1291,7 +1518,10 @@ class EdaSchematicSheetPainter extends CustomPainter {
 
     painter.paint(
       canvas,
-      position - Offset(painter.width / 2, 0),
+      position - Offset(
+        painter.width / 2,
+        0,
+      ),
     );
   }
 
@@ -1318,7 +1548,11 @@ class EdaSchematicSheetPainter extends CustomPainter {
     );
 
     painter.layout();
-    painter.paint(canvas, position);
+
+    painter.paint(
+      canvas,
+      position,
+    );
   }
 
   @override
@@ -1345,7 +1579,10 @@ class EdaHorizontalRulerPainter extends CustomPainter {
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
     canvas.drawRect(
       Offset.zero & size,
       Paint()..color = const Color(0xFFF1F3F4),
@@ -1353,7 +1590,7 @@ class EdaHorizontalRulerPainter extends CustomPainter {
 
     final scale = transform.getMaxScaleOnAxis();
 
-    if (!scale.isFinite || scale <= 0) {
+    if (scale <= 0) {
       return;
     }
 
@@ -1367,8 +1604,7 @@ class EdaHorizontalRulerPainter extends CustomPainter {
 
     final screenSpacing = spacing * scale;
 
-    final firstWorld =
-        -translation.x / scale;
+    final firstWorld = -translation.x / scale;
 
     final lastWorld =
         (size.width - translation.x) / scale;
@@ -1385,11 +1621,9 @@ class EdaHorizontalRulerPainter extends CustomPainter {
       x <= lastWorld + spacing;
       x += spacing
     ) {
-      final sx =
-          x * scale + translation.x;
+      final sx = x * scale + translation.x;
 
-      if (sx < -40 ||
-          sx > size.width + 40) {
+      if (sx < -40 || sx > size.width + 40) {
         continue;
       }
 
@@ -1397,8 +1631,14 @@ class EdaHorizontalRulerPainter extends CustomPainter {
       final height = major ? 15.0 : 7.0;
 
       canvas.drawLine(
-        Offset(sx, size.height - height),
-        Offset(sx, size.height),
+        Offset(
+          sx,
+          size.height - height,
+        ),
+        Offset(
+          sx,
+          size.height,
+        ),
         tickPaint,
       );
 
@@ -1406,16 +1646,17 @@ class EdaHorizontalRulerPainter extends CustomPainter {
         _drawLabel(
           canvas,
           _format(x / pixelsPerMm),
-          Offset(sx + 4, 4),
+          Offset(
+            sx + 4,
+            3,
+          ),
         );
       }
     }
 
-    // Cursor marker.
     if (mouseWorld != null) {
       final sx =
-          mouseWorld!.dx * scale +
-          translation.x;
+          mouseWorld!.dx * scale + translation.x;
 
       if (sx >= 0 && sx <= size.width) {
         final paint = Paint()
@@ -1429,22 +1670,36 @@ class EdaHorizontalRulerPainter extends CustomPainter {
         );
 
         final path = Path()
-          ..moveTo(sx - 4, size.height)
-          ..lineTo(sx + 4, size.height)
-          ..lineTo(sx, size.height - 6)
+          ..moveTo(
+            sx - 4,
+            size.height,
+          )
+          ..lineTo(
+            sx + 4,
+            size.height,
+          )
+          ..lineTo(
+            sx,
+            size.height - 6,
+          )
           ..close();
 
         canvas.drawPath(
           path,
-          Paint()
-            ..color = AppColors.signalOrange,
+          Paint()..color = AppColors.signalOrange,
         );
       }
     }
 
     canvas.drawLine(
-      Offset(0, size.height - 0.5),
-      Offset(size.width, size.height - 0.5),
+      Offset(
+        0,
+        size.height - 0.5,
+      ),
+      Offset(
+        size.width,
+        size.height - 0.5,
+      ),
       Paint()
         ..color = const Color(0xFFB5BDC2)
         ..strokeWidth = 1,
@@ -1462,7 +1717,7 @@ class EdaHorizontalRulerPainter extends CustomPainter {
         style: const TextStyle(
           color: Color(0xFF596168),
           fontSize: 9,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -1505,7 +1760,10 @@ class EdaVerticalRulerPainter extends CustomPainter {
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
     canvas.drawRect(
       Offset.zero & size,
       Paint()..color = const Color(0xFFF1F3F4),
@@ -1513,7 +1771,7 @@ class EdaVerticalRulerPainter extends CustomPainter {
 
     final scale = transform.getMaxScaleOnAxis();
 
-    if (!scale.isFinite || scale <= 0) {
+    if (scale <= 0) {
       return;
     }
 
@@ -1527,8 +1785,7 @@ class EdaVerticalRulerPainter extends CustomPainter {
 
     final screenSpacing = spacing * scale;
 
-    final firstWorld =
-        -translation.y / scale;
+    final firstWorld = -translation.y / scale;
 
     final lastWorld =
         (size.height - translation.y) / scale;
@@ -1545,11 +1802,9 @@ class EdaVerticalRulerPainter extends CustomPainter {
       y <= lastWorld + spacing;
       y += spacing
     ) {
-      final sy =
-          y * scale + translation.y;
+      final sy = y * scale + translation.y;
 
-      if (sy < -40 ||
-          sy > size.height + 40) {
+      if (sy < -40 || sy > size.height + 40) {
         continue;
       }
 
@@ -1557,19 +1812,27 @@ class EdaVerticalRulerPainter extends CustomPainter {
       final width = major ? 15.0 : 7.0;
 
       canvas.drawLine(
-        Offset(size.width - width, sy),
-        Offset(size.width, sy),
+        Offset(
+          size.width - width,
+          sy,
+        ),
+        Offset(
+          size.width,
+          sy,
+        ),
         paint,
       );
 
       if (major) {
         final painter = TextPainter(
           text: TextSpan(
-            text: _format(y / pixelsPerMm),
+            text: _format(
+              y / pixelsPerMm,
+            ),
             style: const TextStyle(
               color: Color(0xFF596168),
               fontSize: 9,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           textDirection: TextDirection.ltr,
@@ -1579,26 +1842,27 @@ class EdaVerticalRulerPainter extends CustomPainter {
 
         painter.paint(
           canvas,
-          Offset(3, sy + 3),
+          Offset(
+            3,
+            sy + 3,
+          ),
         );
       }
     }
 
     if (mouseWorld != null) {
       final sy =
-          mouseWorld!.dy * scale +
-          translation.y;
+          mouseWorld!.dy * scale + translation.y;
 
-      if (sy >= 0 &&
-          sy <= size.height) {
-        final cursorPaint = Paint()
+      if (sy >= 0 && sy <= size.height) {
+        final paint = Paint()
           ..color = AppColors.signalOrange
           ..strokeWidth = 1.2;
 
         canvas.drawLine(
           Offset(0, sy),
           Offset(size.width, sy),
-          cursorPaint,
+          paint,
         );
 
         final path = Path()
@@ -1609,15 +1873,20 @@ class EdaVerticalRulerPainter extends CustomPainter {
 
         canvas.drawPath(
           path,
-          Paint()
-            ..color = AppColors.signalOrange,
+          Paint()..color = AppColors.signalOrange,
         );
       }
     }
 
     canvas.drawLine(
-      Offset(size.width - 0.5, 0),
-      Offset(size.width - 0.5, size.height),
+      Offset(
+        size.width - 0.5,
+        0,
+      ),
+      Offset(
+        size.width - 0.5,
+        size.height,
+      ),
       Paint()
         ..color = const Color(0xFFB5BDC2)
         ..strokeWidth = 1,
@@ -1653,8 +1922,7 @@ double _niceWorldSpacing(
   final targetWorld =
       targetPixels / math.max(0.001, scale);
 
-  final targetMm =
-      targetWorld / pixelsPerMm;
+  final targetMm = targetWorld / pixelsPerMm;
 
   if (targetMm <= 0) {
     return pixelsPerMm;
@@ -1696,7 +1964,10 @@ class EdaCrosshairPainter extends CustomPainter {
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
     if (position.dx < 0 ||
         position.dy < 0 ||
         position.dx > size.width ||
@@ -1713,26 +1984,50 @@ class EdaCrosshairPainter extends CustomPainter {
       ..strokeWidth = 0.8;
 
     canvas.drawLine(
-      Offset(0, position.dy),
-      Offset(size.width, position.dy),
+      Offset(
+        0,
+        position.dy,
+      ),
+      Offset(
+        size.width,
+        position.dy,
+      ),
       glow,
     );
 
     canvas.drawLine(
-      Offset(0, position.dy),
-      Offset(size.width, position.dy),
+      Offset(
+        0,
+        position.dy,
+      ),
+      Offset(
+        size.width,
+        position.dy,
+      ),
       line,
     );
 
     canvas.drawLine(
-      Offset(position.dx, 0),
-      Offset(position.dx, size.height),
+      Offset(
+        position.dx,
+        0,
+      ),
+      Offset(
+        position.dx,
+        size.height,
+      ),
       glow,
     );
 
     canvas.drawLine(
-      Offset(position.dx, 0),
-      Offset(position.dx, size.height),
+      Offset(
+        position.dx,
+        0,
+      ),
+      Offset(
+        position.dx,
+        size.height,
+      ),
       line,
     );
 
@@ -1786,21 +2081,17 @@ class _CanvasToolbar extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(
-          minHeight: 42,
-        ),
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0xFF20262B)
-              .withOpacity(0.97),
-          borderRadius: BorderRadius.circular(10),
+          color: const Color(0xFF20262B).withOpacity(0.97),
+          borderRadius: BorderRadius.circular(7),
           border: Border.all(
-            color: const Color(0xFF4B545B),
+            color: const Color(0xFF495158),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.24),
-              blurRadius: 16,
+              color: Colors.black.withOpacity(0.22),
+              blurRadius: 15,
               offset: const Offset(0, 5),
             ),
           ],
@@ -1813,23 +2104,18 @@ class _CanvasToolbar extends StatelessWidget {
               tooltip: 'Zoom out',
               onPressed: onZoomOut,
             ),
-
             _ZoomLabel(zoom: zoom),
-
             _ToolIcon(
               icon: Icons.add_rounded,
               tooltip: 'Zoom in',
               onPressed: onZoomIn,
             ),
-
             const _ToolbarDivider(),
-
             _ToolIcon(
               icon: Icons.fit_screen_rounded,
               tooltip: 'Fit sheet',
               onPressed: onFit,
             ),
-
             _ToolIcon(
               icon: Icons.one_x_mobiledata_rounded,
               tooltip: '100% zoom',
@@ -1862,13 +2148,13 @@ class _ToolIcon extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: InkWell(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(6),
         onTap: onPressed,
         child: Padding(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.all(5),
           child: Icon(
             icon,
-            size: 17,
+            size: 15,
             color: const Color(0xFFDCE1E4),
           ),
         ),
@@ -1878,7 +2164,7 @@ class _ToolIcon extends StatelessWidget {
 }
 
 // ============================================================================
-// DIVIDER
+// TOOLBAR DIVIDER
 // ============================================================================
 
 class _ToolbarDivider extends StatelessWidget {
@@ -1888,9 +2174,9 @@ class _ToolbarDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 21,
+      height: 18,
       margin: const EdgeInsets.symmetric(
-        horizontal: 4,
+        horizontal: 2,
       ),
       color: const Color(0xFF4B5359),
     );
@@ -1912,16 +2198,11 @@ class _ZoomLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(
-        minWidth: 58,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 5,
+        minWidth: 48,
       ),
       alignment: Alignment.center,
       child: Text(
         '${(zoom * 100).round()}%',
-        maxLines: 1,
-        overflow: TextOverflow.clip,
         style: const TextStyle(
           color: Colors.white,
           fontSize: 10,
@@ -1938,61 +2219,90 @@ class _ZoomLabel extends StatelessWidget {
 
 class _CanvasStatus extends StatelessWidget {
   final Offset? mouseWorld;
+  final double gridMm;
+  final SchematicUnit unit;
 
   const _CanvasStatus({
     required this.mouseWorld,
+    required this.gridMm,
+    required this.unit,
   });
+
+  String _gridText() {
+    if (unit == SchematicUnit.mm) {
+      if ((gridMm - gridMm.round()).abs() < 0.0001) {
+        return '${gridMm.round()} mm';
+      }
+
+      return '${gridMm.toStringAsFixed(3)} mm';
+    }
+
+    return '${(gridMm / 25.4).toStringAsFixed(2)} inch';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final x = mouseWorld == null
-        ? '--'
-        : (
-            mouseWorld!.dx /
-            _SchematicSheetState.pixelsPerMm
-          ).toStringAsFixed(2);
+    final xMm = mouseWorld == null
+        ? null
+        : mouseWorld!.dx /
+            _SchematicSheetState.pixelsPerMm;
 
-    final y = mouseWorld == null
-        ? '--'
-        : (
-            mouseWorld!.dy /
-            _SchematicSheetState.pixelsPerMm
-          ).toStringAsFixed(2);
+    final yMm = mouseWorld == null
+        ? null
+        : mouseWorld!.dy /
+            _SchematicSheetState.pixelsPerMm;
+
+    final String xValue;
+    final String yValue;
+
+    if (xMm == null || yMm == null) {
+      xValue = '--';
+      yValue = '--';
+    } else if (unit == SchematicUnit.mm) {
+      xValue = '${xMm.toStringAsFixed(2)} mm';
+      yValue = '${yMm.toStringAsFixed(2)} mm';
+    } else {
+      final xInch = xMm / 25.4;
+      final yInch = yMm / 25.4;
+
+      // Fixed:
+      // The previous code effectively attempted:
+      // double / String
+      // because `25.4.toStringAsFixed(3)` was evaluated first.
+      xValue = '${xInch.toStringAsFixed(3)} inch';
+      yValue = '${yInch.toStringAsFixed(3)} inch';
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 7,
+        horizontal: 13,
+        vertical: 9,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF20262B)
-            .withOpacity(0.96),
+        color: const Color(0xFF20262B).withOpacity(0.96),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: const Color(0xFF4B535A),
         ),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _StatusItem(
-              label: 'X',
-              value: '$x mm',
-            ),
-            const SizedBox(width: 13),
-            _StatusItem(
-              label: 'Y',
-              value: '$y mm',
-            ),
-            const SizedBox(width: 13),
-            const _StatusItem(
-              label: 'GRID',
-              value: '1.0 mm',
-            ),
-          ],
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StatusItem(
+            label: 'X',
+            value: xValue,
+          ),
+          const SizedBox(width: 15),
+          _StatusItem(
+            label: 'Y',
+            value: yValue,
+          ),
+          const SizedBox(width: 15),
+          _StatusItem(
+            label: 'GRID',
+            value: _gridText(),
+          ),
+        ],
       ),
     );
   }
