@@ -7,6 +7,9 @@ import 'custom_window_bar.dart';
 import 'edit_ribbon.dart';
 import 'view_menu.dart';
 import 'place_menu.dart';
+import 'tools_menu.dart';
+import 'library_menu.dart';
+import 'help_menu.dart';
 
 class MenuBarWidget extends StatefulWidget {
   final String? activeMenu;
@@ -33,6 +36,9 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
   OverlayEntry? _editOverlay;
   OverlayEntry? _viewOverlay;
   OverlayEntry? _placeOverlay;
+  OverlayEntry? _toolsOverlay;
+  OverlayEntry? _libraryOverlay;
+  OverlayEntry? _helpOverlay;
 
   final EditHoverController _editHoverController =
       EditHoverController();
@@ -42,6 +48,18 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 
   final PlaceHoverController _placeHoverController =
       PlaceHoverController();
+
+  final ToolsHoverController _toolsHoverController =
+      ToolsHoverController();
+
+  final LibraryHoverController _libraryHoverController =
+      LibraryHoverController();
+
+  final HelpHoverController _helpHoverController =
+      HelpHoverController();
+
+  final GlobalKey _libraryMenuKey = GlobalKey();
+  final GlobalKey _helpMenuKey = GlobalKey();
 
   final ViewSettings _viewSettings = ViewSettings();
 
@@ -60,8 +78,11 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
   // ==========================================================================
 
   void _editEnter() {
+    _closeLibraryOverlay();
+    _closeHelpOverlay();
     _closeViewOverlay();
     _closePlaceOverlay();
+    _closeToolsOverlay();
 
     _editHoverController.enterEditButton();
 
@@ -195,8 +216,11 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
   // ==========================================================================
 
   void _viewEnter() {
+    _closeLibraryOverlay();
+    _closeHelpOverlay();
     _closeEditOverlay();
     _closePlaceOverlay();
+    _closeToolsOverlay();
 
     _viewHoverController.enterMenu();
 
@@ -289,7 +313,9 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     _refreshViewOverlay();
   }
 
-  void _viewHighlightNetChanged(HighlightNetMode mode) {
+  void _viewHighlightNetChanged(
+    HighlightNetMode mode,
+  ) {
     _viewSettings.highlightNetMode = mode;
     _refreshViewOverlay();
   }
@@ -324,7 +350,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
           onUnitChanged: _viewUnitChanged,
           onGridSizeChanged: _viewGridSizeChanged,
           onGridTypeChanged: _viewGridTypeChanged,
-          onHighlightNetChanged: _viewHighlightNetChanged,
+          onHighlightNetChanged:
+              _viewHighlightNetChanged,
           onCommand: (command) {
             widget.onCommand?.call(command);
 
@@ -361,8 +388,11 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
   // ==========================================================================
 
   void _placeEnter() {
+    _closeLibraryOverlay();
+    _closeHelpOverlay();
     _closeEditOverlay();
     _closeViewOverlay();
+    _closeToolsOverlay();
 
     _placeHoverController.enterMenu();
 
@@ -463,7 +493,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
           controller: _placeHoverController,
           onEnter: _placeDropdownEnter,
           onExit: _placeDropdownExit,
-          onSubmenuHoverChanged: _placeSubmenuHoverChanged,
+          onSubmenuHoverChanged:
+              _placeSubmenuHoverChanged,
           onCommand: (command) {
             widget.onCommand?.call(command);
             _closePlaceOverlay();
@@ -493,6 +524,332 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
   }
 
   // ==========================================================================
+  // TOOLS
+  // ==========================================================================
+
+  void _toolsEnter() {
+    _closeLibraryOverlay();
+    _closeHelpOverlay();
+    _closeEditOverlay();
+    _closeViewOverlay();
+    _closePlaceOverlay();
+
+    _toolsHoverController.enterMenu();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Tools';
+    });
+
+    _openToolsOverlay();
+  }
+
+  void _toolsExit() {
+    _toolsHoverController.exitMenu();
+
+    if (!mounted) return;
+
+    setState(() {
+      if (!_toolsHoverController.isInsideToolsSystem) {
+        hoveredMenu = null;
+      }
+    });
+
+    _scheduleToolsOverlayClose();
+  }
+
+  void _toolsDropdownEnter() {
+    _toolsHoverController.enterDropdown();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Tools';
+    });
+  }
+
+  void _toolsDropdownExit() {
+    _toolsHoverController.exitDropdown();
+
+    if (!mounted) return;
+
+    setState(() {
+      if (!_toolsHoverController.isInsideToolsSystem) {
+        hoveredMenu = null;
+      }
+    });
+
+    _scheduleToolsOverlayClose();
+  }
+
+  void _scheduleToolsOverlayClose() {
+    _toolsHoverController.scheduleClose(
+      onClose: () {
+        if (!mounted) return;
+
+        if (!_toolsHoverController.isInsideToolsSystem) {
+          _closeToolsOverlay();
+        }
+      },
+    );
+  }
+
+  void _openToolsOverlay() {
+    if (_toolsOverlay != null) {
+      _toolsOverlay!.markNeedsBuild();
+      return;
+    }
+
+    final RenderBox? renderBox =
+        context.findRenderObject() as RenderBox?;
+
+    if (renderBox == null) return;
+
+    final Offset menuBarPosition =
+        renderBox.localToGlobal(Offset.zero);
+
+    final OverlayState overlay = Overlay.of(context);
+
+    _toolsOverlay = OverlayEntry(
+      builder: (context) {
+        return _ToolsDropdownOverlay(
+          left: menuBarPosition.dx +
+              CustomWindowBar.leftAlignment +
+              2,
+          top: menuBarPosition.dy + 44,
+          controller: _toolsHoverController,
+          onEnter: _toolsDropdownEnter,
+          onExit: _toolsDropdownExit,
+          onCommand: (command) {
+            widget.onCommand?.call(command);
+            _closeToolsOverlay();
+          },
+        );
+      },
+    );
+
+    overlay.insert(_toolsOverlay!);
+  }
+
+  void _closeToolsOverlay() {
+    _toolsHoverController.cancelClose();
+
+    _toolsOverlay?.remove();
+    _toolsOverlay = null;
+
+    if (mounted) {
+      setState(() {
+        if (hoveredMenu == 'Tools') {
+          hoveredMenu = null;
+        }
+      });
+    }
+
+    _toolsHoverController.reset();
+  }
+
+  // ============================================================================
+  // LIBRARY
+  // ============================================================================
+
+  void _libraryEnter() {
+    _closeEditOverlay();
+    _closeViewOverlay();
+    _closePlaceOverlay();
+    _closeToolsOverlay();
+    _closeHelpOverlay();
+
+    _libraryHoverController.enterLibraryButton();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Library';
+    });
+
+    _openLibraryOverlay();
+  }
+
+  void _libraryExit() {
+    _libraryHoverController.exitLibraryButton();
+    _scheduleLibraryOverlayClose();
+  }
+
+  void _libraryDropdownEnter() {
+    _libraryHoverController.enterLibraryDropdown();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Library';
+    });
+  }
+
+  void _libraryDropdownExit() {
+    _libraryHoverController.exitLibraryDropdown();
+    _scheduleLibraryOverlayClose();
+  }
+
+  void _scheduleLibraryOverlayClose() {
+    _libraryHoverController.scheduleClose(
+      onClose: () {
+        if (!mounted) return;
+        if (!_libraryHoverController.isInsideLibrarySystem) {
+          _closeLibraryOverlay();
+        }
+      },
+    );
+  }
+
+  void _openLibraryOverlay() {
+    if (_libraryOverlay != null) {
+      _libraryOverlay!.markNeedsBuild();
+      return;
+    }
+
+    final RenderBox? menuBox =
+        _libraryMenuKey.currentContext?.findRenderObject() as RenderBox?;
+
+    if (menuBox == null) return;
+
+    final Offset position = menuBox.localToGlobal(Offset.zero);
+    final OverlayState overlay = Overlay.of(context);
+
+    _libraryOverlay = OverlayEntry(
+      builder: (context) {
+        return _LibraryDropdownOverlay(
+          left: position.dx,
+          top: position.dy + menuBox.size.height + 2,
+          controller: _libraryHoverController,
+          onEnter: _libraryDropdownEnter,
+          onExit: _libraryDropdownExit,
+          onCommand: (command) {
+            widget.onCommand?.call(command);
+            _closeLibraryOverlay();
+          },
+        );
+      },
+    );
+
+    overlay.insert(_libraryOverlay!);
+  }
+
+  void _closeLibraryOverlay() {
+    _libraryHoverController.cancelClose();
+    _libraryOverlay?.remove();
+    _libraryOverlay = null;
+
+    if (mounted && hoveredMenu == 'Library') {
+      setState(() {
+        hoveredMenu = null;
+      });
+    }
+
+    _libraryHoverController.reset();
+  }
+
+  // ============================================================================
+  // HELP
+  // ============================================================================
+
+  void _helpEnter() {
+    _closeEditOverlay();
+    _closeViewOverlay();
+    _closePlaceOverlay();
+    _closeToolsOverlay();
+    _closeLibraryOverlay();
+
+    _helpHoverController.enterHelpButton();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Help';
+    });
+
+    _openHelpOverlay();
+  }
+
+  void _helpExit() {
+    _helpHoverController.exitHelpButton();
+    _scheduleHelpOverlayClose();
+  }
+
+  void _helpDropdownEnter() {
+    _helpHoverController.enterHelpDropdown();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Help';
+    });
+  }
+
+  void _helpDropdownExit() {
+    _helpHoverController.exitHelpDropdown();
+    _scheduleHelpOverlayClose();
+  }
+
+  void _scheduleHelpOverlayClose() {
+    _helpHoverController.scheduleClose(
+      onClose: () {
+        if (!mounted) return;
+        if (!_helpHoverController.isInsideHelpSystem) {
+          _closeHelpOverlay();
+        }
+      },
+    );
+  }
+
+  void _openHelpOverlay() {
+    if (_helpOverlay != null) {
+      _helpOverlay!.markNeedsBuild();
+      return;
+    }
+
+    final RenderBox? menuBox =
+        _helpMenuKey.currentContext?.findRenderObject() as RenderBox?;
+
+    if (menuBox == null) return;
+
+    final Offset position = menuBox.localToGlobal(Offset.zero);
+    final OverlayState overlay = Overlay.of(context);
+
+    _helpOverlay = OverlayEntry(
+      builder: (context) {
+        return _HelpDropdownOverlay(
+          left: position.dx,
+          top: position.dy + menuBox.size.height + 2,
+          controller: _helpHoverController,
+          onEnter: _helpDropdownEnter,
+          onExit: _helpDropdownExit,
+          onCommand: (command) {
+            widget.onCommand?.call(command);
+            _closeHelpOverlay();
+          },
+        );
+      },
+    );
+
+    overlay.insert(_helpOverlay!);
+  }
+
+  void _closeHelpOverlay() {
+    _helpHoverController.cancelClose();
+    _helpOverlay?.remove();
+    _helpOverlay = null;
+
+    if (mounted && hoveredMenu == 'Help') {
+      setState(() {
+        hoveredMenu = null;
+      });
+    }
+
+    _helpHoverController.reset();
+  }
+
+  // ==========================================================================
   // TOP LEVEL MENU
   // ==========================================================================
 
@@ -512,9 +869,27 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
       return;
     }
 
+    if (menu == 'Tools') {
+      _toolsEnter();
+      return;
+    }
+
+    if (menu == 'Library') {
+      _libraryEnter();
+      return;
+    }
+
+    if (menu == 'Help') {
+      _helpEnter();
+      return;
+    }
+
     _closeEditOverlay();
     _closeViewOverlay();
     _closePlaceOverlay();
+    _closeToolsOverlay();
+    _closeLibraryOverlay();
+    _closeHelpOverlay();
 
     if (!mounted) return;
 
@@ -536,6 +911,21 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 
     if (menu == 'Place') {
       _placeExit();
+      return;
+    }
+
+    if (menu == 'Tools') {
+      _toolsExit();
+      return;
+    }
+
+    if (menu == 'Library') {
+      _libraryExit();
+      return;
+    }
+
+    if (menu == 'Help') {
+      _helpExit();
       return;
     }
 
@@ -564,6 +954,21 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
       return;
     }
 
+    if (menu == 'Tools') {
+      _openToolsOverlay();
+      return;
+    }
+
+    if (menu == 'Library') {
+      _openLibraryOverlay();
+      return;
+    }
+
+    if (menu == 'Help') {
+      _openHelpOverlay();
+      return;
+    }
+
     widget.onMenuChanged(menu);
   }
 
@@ -576,6 +981,9 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     _editHoverController.dispose();
     _viewHoverController.dispose();
     _placeHoverController.dispose();
+    _toolsHoverController.dispose();
+    _libraryHoverController.dispose();
+    _helpHoverController.dispose();
 
     _editOverlay?.remove();
     _editOverlay = null;
@@ -585,6 +993,15 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 
     _placeOverlay?.remove();
     _placeOverlay = null;
+
+    _toolsOverlay?.remove();
+    _toolsOverlay = null;
+
+    _libraryOverlay?.remove();
+    _libraryOverlay = null;
+
+    _helpOverlay?.remove();
+    _helpOverlay = null;
 
     super.dispose();
   }
@@ -629,12 +1046,22 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                     ),
                     for (final menu in menus)
                       _TopLevelMenuItem(
+                        key: menu == 'Library'
+                            ? _libraryMenuKey
+                            : menu == 'Help'
+                                ? _helpMenuKey
+                                : null,
                         label: menu,
-                        active: widget.activeMenu == menu,
-                        hovered: hoveredMenu == menu,
-                        onEnter: () => _menuEnter(menu),
-                        onExit: () => _menuExit(menu),
-                        onTap: () => _menuTap(menu),
+                        active:
+                            widget.activeMenu == menu,
+                        hovered:
+                            hoveredMenu == menu,
+                        onEnter: () =>
+                            _menuEnter(menu),
+                        onExit: () =>
+                            _menuExit(menu),
+                        onTap: () =>
+                            _menuTap(menu),
                       ),
                   ],
                 ),
@@ -642,7 +1069,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 
               Center(
                 child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
+                  cursor:
+                      SystemMouseCursors.click,
                   onEnter: (_) {
                     if (!mounted) return;
 
@@ -658,14 +1086,18 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                     });
                   },
                   child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: widget.onFullscreenPressed,
-                    child: TweenAnimationBuilder<double>(
+                    behavior:
+                        HitTestBehavior.opaque,
+                    onTap:
+                        widget.onFullscreenPressed,
+                    child:
+                        TweenAnimationBuilder<double>(
                       tween: Tween<double>(
                         begin: 0,
                         end: arrowHovered ? 1 : 0,
                       ),
-                      duration: const Duration(
+                      duration:
+                          const Duration(
                         milliseconds: 220,
                       ),
                       curve: Curves.easeOutBack,
@@ -675,51 +1107,69 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                         child,
                       ) {
                         return Transform.translate(
-                          offset: Offset(0, -3 * value),
+                          offset:
+                              Offset(0, -3 * value),
                           child: Transform.scale(
-                            scale: 1 + (0.07 * value),
+                            scale:
+                                1 + (0.07 * value),
                             child: Container(
                               width: 38,
                               height: 27,
-                              decoration: BoxDecoration(
+                              decoration:
+                                  BoxDecoration(
                                 color: Color.lerp(
                                   Colors.transparent,
-                                  AppColors.slateGray
-                                      .withOpacity(0.82),
+                                  AppColors
+                                      .slateGray
+                                      .withOpacity(
+                                    0.82,
+                                  ),
                                   value,
                                 ),
                                 borderRadius:
-                                    BorderRadius.circular(6),
+                                    BorderRadius
+                                        .circular(6),
                                 border: Border.all(
                                   color: Color.lerp(
                                     Colors.transparent,
-                                    AppColors.signalOrange,
+                                    AppColors
+                                        .signalOrange,
                                     value,
                                   )!,
                                   width: 1,
                                 ),
-                                boxShadow: value > 0
-                                    ? [
-                                        BoxShadow(
-                                          color: AppColors
-                                              .signalOrange
-                                              .withOpacity(
-                                            0.18 * value,
-                                          ),
-                                          blurRadius: 12,
-                                          spreadRadius: 1,
-                                          offset:
-                                              const Offset(0, 2),
-                                        ),
-                                      ]
-                                    : null,
+                                boxShadow:
+                                    value > 0
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors
+                                                  .signalOrange
+                                                  .withOpacity(
+                                                0.18 *
+                                                    value,
+                                              ),
+                                              blurRadius:
+                                                  12,
+                                              spreadRadius:
+                                                  1,
+                                              offset:
+                                                  const Offset(
+                                                0,
+                                                2,
+                                              ),
+                                            ),
+                                          ]
+                                        : null,
                               ),
                               child: Icon(
                                 Icons
                                     .keyboard_arrow_up_rounded,
                                 size: 23,
                                 color: Color.lerp(
-                                  Colors.white.withOpacity(0.72),
+                                  Colors.white
+                                      .withOpacity(
+                                    0.72,
+                                  ),
                                   Colors.white,
                                   value,
                                 ),
@@ -741,10 +1191,95 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 }
 
 // ============================================================================
+// LIBRARY DROPDOWN
+// ============================================================================
+
+class _LibraryDropdownOverlay extends StatelessWidget {
+  final double left;
+  final double top;
+  final LibraryHoverController controller;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final ValueChanged<String> onCommand;
+
+  const _LibraryDropdownOverlay({
+    required this.left,
+    required this.top,
+    required this.controller,
+    required this.onEnter,
+    required this.onExit,
+    required this.onCommand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        onEnter: (_) => onEnter(),
+        onExit: (_) => onExit(),
+        child: Material(
+          color: Colors.transparent,
+          child: LibraryMenu(
+            controller: controller,
+            onCommand: onCommand,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// HELP DROPDOWN
+// ============================================================================
+
+class _HelpDropdownOverlay extends StatelessWidget {
+  final double left;
+  final double top;
+  final HelpHoverController controller;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final ValueChanged<String> onCommand;
+
+  const _HelpDropdownOverlay({
+    required this.left,
+    required this.top,
+    required this.controller,
+    required this.onEnter,
+    required this.onExit,
+    required this.onCommand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        onEnter: (_) => onEnter(),
+        onExit: (_) => onExit(),
+        child: Material(
+          color: Colors.transparent,
+          child: HelpMenu(
+            controller: controller,
+            onCommand: onCommand,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
 // EDIT DROPDOWN
 // ============================================================================
 
-class _EditDropdownOverlay extends StatelessWidget {
+class _EditDropdownOverlay
+    extends StatelessWidget {
   final double left;
   final double top;
   final EditHoverController controller;
@@ -776,7 +1311,8 @@ class _EditDropdownOverlay extends StatelessWidget {
           color: Colors.transparent,
           child: EditMenu(
             controller: controller,
-            onSubmenuHoverChanged: onSubmenuHoverChanged,
+            onSubmenuHoverChanged:
+                onSubmenuHoverChanged,
             onCommand: onCommand,
           ),
         ),
@@ -789,17 +1325,21 @@ class _EditDropdownOverlay extends StatelessWidget {
 // VIEW DROPDOWN
 // ============================================================================
 
-class _ViewDropdownOverlay extends StatelessWidget {
+class _ViewDropdownOverlay
+    extends StatelessWidget {
   final double left;
   final double top;
   final ViewHoverController controller;
   final ViewSettings settings;
   final VoidCallback onEnter;
   final VoidCallback onExit;
+
   final ValueChanged<ViewUnit> onUnitChanged;
   final ValueChanged<double> onGridSizeChanged;
   final ValueChanged<GridType> onGridTypeChanged;
-  final ValueChanged<HighlightNetMode> onHighlightNetChanged;
+  final ValueChanged<HighlightNetMode>
+      onHighlightNetChanged;
+
   final ValueChanged<String> onCommand;
 
   const _ViewDropdownOverlay({
@@ -831,9 +1371,12 @@ class _ViewDropdownOverlay extends StatelessWidget {
             controller: controller,
             settings: settings,
             onUnitChanged: onUnitChanged,
-            onGridSizeChanged: onGridSizeChanged,
-            onGridTypeChanged: onGridTypeChanged,
-            onHighlightNetChanged: onHighlightNetChanged,
+            onGridSizeChanged:
+                onGridSizeChanged,
+            onGridTypeChanged:
+                onGridTypeChanged,
+            onHighlightNetChanged:
+                onHighlightNetChanged,
             onCommand: onCommand,
           ),
         ),
@@ -846,7 +1389,8 @@ class _ViewDropdownOverlay extends StatelessWidget {
 // PLACE DROPDOWN
 // ============================================================================
 
-class _PlaceDropdownOverlay extends StatelessWidget {
+class _PlaceDropdownOverlay
+    extends StatelessWidget {
   final double left;
   final double top;
   final PlaceHoverController controller;
@@ -878,7 +1422,51 @@ class _PlaceDropdownOverlay extends StatelessWidget {
           color: Colors.transparent,
           child: PlaceMenu(
             controller: controller,
-            onSubmenuHoverChanged: onSubmenuHoverChanged,
+            onSubmenuHoverChanged:
+                onSubmenuHoverChanged,
+            onCommand: onCommand,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// TOOLS DROPDOWN
+// ============================================================================
+
+class _ToolsDropdownOverlay
+    extends StatelessWidget {
+  final double left;
+  final double top;
+  final ToolsHoverController controller;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final ValueChanged<String> onCommand;
+
+  const _ToolsDropdownOverlay({
+    required this.left,
+    required this.top,
+    required this.controller,
+    required this.onEnter,
+    required this.onExit,
+    required this.onCommand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        onEnter: (_) => onEnter(),
+        onExit: (_) => onExit(),
+        child: Material(
+          color: Colors.transparent,
+          child: ToolsMenu(
+            controller: controller,
             onCommand: onCommand,
           ),
         ),
@@ -971,7 +1559,8 @@ class EditHoverController {
 // TOP LEVEL MENU ITEM
 // ============================================================================
 
-class _TopLevelMenuItem extends StatelessWidget {
+class _TopLevelMenuItem
+    extends StatelessWidget {
   final String label;
   final bool active;
   final bool hovered;
@@ -981,6 +1570,7 @@ class _TopLevelMenuItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const _TopLevelMenuItem({
+    super.key,
     required this.label,
     required this.active,
     required this.hovered,
@@ -991,7 +1581,8 @@ class _TopLevelMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool highlighted = active || hovered;
+    final bool highlighted =
+        active || hovered;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -1001,28 +1592,38 @@ class _TopLevelMenuItem extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 170),
+          duration:
+              const Duration(milliseconds: 170),
           curve: Curves.easeOutCubic,
           height: 32,
-          margin: const EdgeInsets.only(right: 3),
-          padding: const EdgeInsets.symmetric(horizontal: 13),
+          margin:
+              const EdgeInsets.only(right: 3),
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 13,
+          ),
           decoration: BoxDecoration(
             color: active
-                ? AppColors.slateGray.withOpacity(0.68)
+                ? AppColors.slateGray
+                    .withOpacity(0.68)
                 : hovered
-                    ? AppColors.slateGray.withOpacity(0.34)
+                    ? AppColors.slateGray
+                        .withOpacity(0.34)
                     : Colors.transparent,
-            borderRadius: BorderRadius.circular(5),
+            borderRadius:
+                BorderRadius.circular(5),
             border: Border.all(
               color: active
-                  ? AppColors.signalOrange.withOpacity(0.48)
+                  ? AppColors.signalOrange
+                      .withOpacity(0.48)
                   : Colors.transparent,
               width: 1,
             ),
             boxShadow: hovered
                 ? [
                     BoxShadow(
-                      color: AppColors.signalOrange
+                      color: AppColors
+                          .signalOrange
                           .withOpacity(0.08),
                       blurRadius: 9,
                     ),
@@ -1033,7 +1634,10 @@ class _TopLevelMenuItem extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               Padding(
-                padding: const EdgeInsets.only(bottom: 3),
+                padding:
+                    const EdgeInsets.only(
+                  bottom: 3,
+                ),
                 child: Text(
                   label,
                   style: TextStyle(
@@ -1050,12 +1654,16 @@ class _TopLevelMenuItem extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: TweenAnimationBuilder<double>(
+                child:
+                    TweenAnimationBuilder<double>(
                   tween: Tween<double>(
                     begin: 0,
                     end: highlighted ? 1 : 0,
                   ),
-                  duration: const Duration(milliseconds: 200),
+                  duration:
+                      const Duration(
+                    milliseconds: 200,
+                  ),
                   curve: Curves.easeOutCubic,
                   builder: (
                     context,
@@ -1065,23 +1673,32 @@ class _TopLevelMenuItem extends StatelessWidget {
                     return Center(
                       child: Container(
                         width: 34 * value,
-                        height: active ? 2.5 : 2,
-                        decoration: BoxDecoration(
-                          color: AppColors.signalOrange,
+                        height:
+                            active ? 2.5 : 2,
+                        decoration:
+                            BoxDecoration(
+                          color: AppColors
+                              .signalOrange,
                           borderRadius:
-                              BorderRadius.circular(10),
-                          boxShadow: value > 0
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors
-                                        .signalOrange
-                                        .withOpacity(
-                                      0.45 * value,
-                                    ),
-                                    blurRadius: 5,
-                                  ),
-                                ]
-                              : null,
+                              BorderRadius
+                                  .circular(
+                            10,
+                          ),
+                          boxShadow:
+                              value > 0
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors
+                                            .signalOrange
+                                            .withOpacity(
+                                          0.45 *
+                                              value,
+                                        ),
+                                        blurRadius:
+                                            5,
+                                      ),
+                                    ]
+                                  : null,
                         ),
                       ),
                     );
