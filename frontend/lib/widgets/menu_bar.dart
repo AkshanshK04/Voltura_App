@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import 'custom_window_bar.dart';
 import 'edit_ribbon.dart';
 import 'view_menu.dart';
+import 'place_menu.dart';
 
 class MenuBarWidget extends StatefulWidget {
   final String? activeMenu;
@@ -22,33 +23,27 @@ class MenuBarWidget extends StatefulWidget {
   });
 
   @override
-  State<MenuBarWidget> createState() =>
-      _MenuBarWidgetState();
+  State<MenuBarWidget> createState() => _MenuBarWidgetState();
 }
 
-class _MenuBarWidgetState
-    extends State<MenuBarWidget> {
+class _MenuBarWidgetState extends State<MenuBarWidget> {
   String? hoveredMenu;
-
   bool arrowHovered = false;
 
   OverlayEntry? _editOverlay;
   OverlayEntry? _viewOverlay;
+  OverlayEntry? _placeOverlay;
 
-  final EditHoverController
-      _editHoverController =
+  final EditHoverController _editHoverController =
       EditHoverController();
 
-  final ViewHoverController
-      _viewHoverController =
+  final ViewHoverController _viewHoverController =
       ViewHoverController();
 
-  // ==========================================================================
-  // PERSISTENT VIEW SETTINGS
-  // ==========================================================================
+  final PlaceHoverController _placeHoverController =
+      PlaceHoverController();
 
-  final ViewSettings _viewSettings =
-      ViewSettings();
+  final ViewSettings _viewSettings = ViewSettings();
 
   final List<String> menus = const [
     'File',
@@ -56,6 +51,7 @@ class _MenuBarWidgetState
     'View',
     'Place',
     'Tools',
+    'Library',
     'Help',
   ];
 
@@ -65,14 +61,15 @@ class _MenuBarWidgetState
 
   void _editEnter() {
     _closeViewOverlay();
+    _closePlaceOverlay();
 
     _editHoverController.enterEditButton();
 
-    if (mounted) {
-      setState(() {
-        hoveredMenu = 'Edit';
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Edit';
+    });
 
     _openEditOverlay();
   }
@@ -80,41 +77,37 @@ class _MenuBarWidgetState
   void _editExit() {
     _editHoverController.exitEditButton();
 
-    if (mounted) {
-      setState(() {
-        if (!_editHoverController
-            .isInsideEditSystem) {
-          hoveredMenu = null;
-        }
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      if (!_editHoverController.isInsideEditSystem) {
+        hoveredMenu = null;
+      }
+    });
 
     _scheduleEditOverlayClose();
   }
 
   void _dropdownEnter() {
-    _editHoverController
-        .enterEditDropdown();
+    _editHoverController.enterEditDropdown();
 
-    if (mounted) {
-      setState(() {
-        hoveredMenu = 'Edit';
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Edit';
+    });
   }
 
   void _dropdownExit() {
-    _editHoverController
-        .exitEditDropdown();
+    _editHoverController.exitEditDropdown();
 
-    if (mounted) {
-      setState(() {
-        if (!_editHoverController
-            .isInsideEditSystem) {
-          hoveredMenu = null;
-        }
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      if (!_editHoverController.isInsideEditSystem) {
+        hoveredMenu = null;
+      }
+    });
 
     _scheduleEditOverlayClose();
   }
@@ -122,8 +115,7 @@ class _MenuBarWidgetState
   void _submenuHoverChanged() {
     if (mounted) {
       setState(() {
-        if (_editHoverController
-            .isInsideEditSystem) {
+        if (_editHoverController.isInsideEditSystem) {
           hoveredMenu = 'Edit';
         }
       });
@@ -137,8 +129,7 @@ class _MenuBarWidgetState
       onClose: () {
         if (!mounted) return;
 
-        if (!_editHoverController
-            .isInsideEditSystem) {
+        if (!_editHoverController.isInsideEditSystem) {
           _closeEditOverlay();
         }
       },
@@ -151,20 +142,14 @@ class _MenuBarWidgetState
     }
 
     final RenderBox? renderBox =
-        context.findRenderObject()
-            as RenderBox?;
+        context.findRenderObject() as RenderBox?;
 
-    if (renderBox == null) {
-      return;
-    }
+    if (renderBox == null) return;
 
     final Offset menuBarPosition =
-        renderBox.localToGlobal(
-      Offset.zero,
-    );
+        renderBox.localToGlobal(Offset.zero);
 
-    final OverlayState overlay =
-        Overlay.of(context);
+    final OverlayState overlay = Overlay.of(context);
 
     _editOverlay = OverlayEntry(
       builder: (context) {
@@ -176,12 +161,9 @@ class _MenuBarWidgetState
           controller: _editHoverController,
           onEnter: _dropdownEnter,
           onExit: _dropdownExit,
-          onSubmenuHoverChanged:
-              _submenuHoverChanged,
+          onSubmenuHoverChanged: _submenuHoverChanged,
           onCommand: (command) {
-            widget.onCommand
-                ?.call(command);
-
+            widget.onCommand?.call(command);
             _closeEditOverlay();
           },
         );
@@ -214,14 +196,15 @@ class _MenuBarWidgetState
 
   void _viewEnter() {
     _closeEditOverlay();
+    _closePlaceOverlay();
 
     _viewHoverController.enterMenu();
 
-    if (mounted) {
-      setState(() {
-        hoveredMenu = 'View';
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'View';
+    });
 
     _openViewOverlay();
   }
@@ -229,14 +212,13 @@ class _MenuBarWidgetState
   void _viewExit() {
     _viewHoverController.exitMenu();
 
-    if (mounted) {
-      setState(() {
-        if (!_viewHoverController
-            .isInsideViewSystem) {
-          hoveredMenu = null;
-        }
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      if (!_viewHoverController.isInsideViewSystem) {
+        hoveredMenu = null;
+      }
+    });
 
     _scheduleViewOverlayClose();
   }
@@ -244,24 +226,23 @@ class _MenuBarWidgetState
   void _viewDropdownEnter() {
     _viewHoverController.enterDropdown();
 
-    if (mounted) {
-      setState(() {
-        hoveredMenu = 'View';
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'View';
+    });
   }
 
   void _viewDropdownExit() {
     _viewHoverController.exitDropdown();
 
-    if (mounted) {
-      setState(() {
-        if (!_viewHoverController
-            .isInsideViewSystem) {
-          hoveredMenu = null;
-        }
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      if (!_viewHoverController.isInsideViewSystem) {
+        hoveredMenu = null;
+      }
+    });
 
     _scheduleViewOverlayClose();
   }
@@ -271,38 +252,19 @@ class _MenuBarWidgetState
       onClose: () {
         if (!mounted) return;
 
-        if (!_viewHoverController
-            .isInsideViewSystem) {
+        if (!_viewHoverController.isInsideViewSystem) {
           _closeViewOverlay();
         }
       },
     );
   }
 
-  // ==========================================================================
-  // VIEW SETTING COMMAND
-  // ==========================================================================
-
-  bool _isViewSettingCommand(
-    String command,
-  ) {
-    return command.startsWith(
-          'View: Unit:',
-        ) ||
-        command.startsWith(
-          'View: Grid Size:',
-        ) ||
-        command.startsWith(
-          'View: Grid Type:',
-        ) ||
-        command.startsWith(
-          'View: Highlight Net:',
-        );
+  bool _isViewSettingCommand(String command) {
+    return command.startsWith('View: Unit:') ||
+        command.startsWith('View: Grid Size:') ||
+        command.startsWith('View: Grid Type:') ||
+        command.startsWith('View: Highlight Net:');
   }
-
-  // ==========================================================================
-  // FORCE VIEW OVERLAY REBUILD
-  // ==========================================================================
 
   void _refreshViewOverlay() {
     _viewOverlay?.markNeedsBuild();
@@ -312,59 +274,25 @@ class _MenuBarWidgetState
     }
   }
 
-  // ==========================================================================
-  // VIEW UNIT
-  // ==========================================================================
-
-  void _viewUnitChanged(
-    ViewUnit unit,
-  ) {
+  void _viewUnitChanged(ViewUnit unit) {
     _viewSettings.unit = unit;
-
     _refreshViewOverlay();
   }
 
-  // ==========================================================================
-  // VIEW GRID SIZE
-  // ==========================================================================
-
-  void _viewGridSizeChanged(
-    double inches,
-  ) {
-    _viewSettings.gridSizeInches =
-        inches;
-
+  void _viewGridSizeChanged(double inches) {
+    _viewSettings.gridSizeInches = inches;
     _refreshViewOverlay();
   }
 
-  // ==========================================================================
-  // VIEW GRID TYPE
-  // ==========================================================================
-
-  void _viewGridTypeChanged(
-    GridType type,
-  ) {
+  void _viewGridTypeChanged(GridType type) {
     _viewSettings.gridType = type;
-
     _refreshViewOverlay();
   }
 
-  // ==========================================================================
-  // VIEW HIGHLIGHT
-  // ==========================================================================
-
-  void _viewHighlightNetChanged(
-    HighlightNetMode mode,
-  ) {
-    _viewSettings.highlightNetMode =
-        mode;
-
+  void _viewHighlightNetChanged(HighlightNetMode mode) {
+    _viewSettings.highlightNetMode = mode;
     _refreshViewOverlay();
   }
-
-  // ==========================================================================
-  // OPEN VIEW OVERLAY
-  // ==========================================================================
 
   void _openViewOverlay() {
     if (_viewOverlay != null) {
@@ -373,20 +301,14 @@ class _MenuBarWidgetState
     }
 
     final RenderBox? renderBox =
-        context.findRenderObject()
-            as RenderBox?;
+        context.findRenderObject() as RenderBox?;
 
-    if (renderBox == null) {
-      return;
-    }
+    if (renderBox == null) return;
 
     final Offset menuBarPosition =
-        renderBox.localToGlobal(
-      Offset.zero,
-    );
+        renderBox.localToGlobal(Offset.zero);
 
-    final OverlayState overlay =
-        Overlay.of(context);
+    final OverlayState overlay = Overlay.of(context);
 
     _viewOverlay = OverlayEntry(
       builder: (context) {
@@ -395,28 +317,18 @@ class _MenuBarWidgetState
               CustomWindowBar.leftAlignment +
               2,
           top: menuBarPosition.dy + 44,
-          controller:
-              _viewHoverController,
+          controller: _viewHoverController,
           settings: _viewSettings,
-          onEnter:
-              _viewDropdownEnter,
-          onExit:
-              _viewDropdownExit,
-          onUnitChanged:
-              _viewUnitChanged,
-          onGridSizeChanged:
-              _viewGridSizeChanged,
-          onGridTypeChanged:
-              _viewGridTypeChanged,
-          onHighlightNetChanged:
-              _viewHighlightNetChanged,
+          onEnter: _viewDropdownEnter,
+          onExit: _viewDropdownExit,
+          onUnitChanged: _viewUnitChanged,
+          onGridSizeChanged: _viewGridSizeChanged,
+          onGridTypeChanged: _viewGridTypeChanged,
+          onHighlightNetChanged: _viewHighlightNetChanged,
           onCommand: (command) {
-            widget.onCommand
-                ?.call(command);
+            widget.onCommand?.call(command);
 
-            if (!_isViewSettingCommand(
-              command,
-            )) {
+            if (!_isViewSettingCommand(command)) {
               _closeViewOverlay();
             }
           },
@@ -426,10 +338,6 @@ class _MenuBarWidgetState
 
     overlay.insert(_viewOverlay!);
   }
-
-  // ==========================================================================
-  // CLOSE VIEW OVERLAY
-  // ==========================================================================
 
   void _closeViewOverlay() {
     _viewHoverController.cancelClose();
@@ -449,6 +357,142 @@ class _MenuBarWidgetState
   }
 
   // ==========================================================================
+  // PLACE
+  // ==========================================================================
+
+  void _placeEnter() {
+    _closeEditOverlay();
+    _closeViewOverlay();
+
+    _placeHoverController.enterMenu();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Place';
+    });
+
+    _openPlaceOverlay();
+  }
+
+  void _placeExit() {
+    _placeHoverController.exitMenu();
+
+    if (!mounted) return;
+
+    setState(() {
+      if (!_placeHoverController.isInsidePlaceSystem) {
+        hoveredMenu = null;
+      }
+    });
+
+    _schedulePlaceOverlayClose();
+  }
+
+  void _placeDropdownEnter() {
+    _placeHoverController.enterDropdown();
+
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = 'Place';
+    });
+  }
+
+  void _placeDropdownExit() {
+    _placeHoverController.exitDropdown();
+
+    if (!mounted) return;
+
+    setState(() {
+      if (!_placeHoverController.isInsidePlaceSystem) {
+        hoveredMenu = null;
+      }
+    });
+
+    _schedulePlaceOverlayClose();
+  }
+
+  void _placeSubmenuHoverChanged() {
+    if (mounted) {
+      setState(() {
+        if (_placeHoverController.isInsidePlaceSystem) {
+          hoveredMenu = 'Place';
+        }
+      });
+    }
+
+    _schedulePlaceOverlayClose();
+  }
+
+  void _schedulePlaceOverlayClose() {
+    _placeHoverController.scheduleClose(
+      onClose: () {
+        if (!mounted) return;
+
+        if (!_placeHoverController.isInsidePlaceSystem) {
+          _closePlaceOverlay();
+        }
+      },
+    );
+  }
+
+  void _openPlaceOverlay() {
+    if (_placeOverlay != null) {
+      _placeOverlay!.markNeedsBuild();
+      return;
+    }
+
+    final RenderBox? renderBox =
+        context.findRenderObject() as RenderBox?;
+
+    if (renderBox == null) return;
+
+    final Offset menuBarPosition =
+        renderBox.localToGlobal(Offset.zero);
+
+    final OverlayState overlay = Overlay.of(context);
+
+    _placeOverlay = OverlayEntry(
+      builder: (context) {
+        return _PlaceDropdownOverlay(
+          left: menuBarPosition.dx +
+              CustomWindowBar.leftAlignment +
+              2,
+          top: menuBarPosition.dy + 44,
+          controller: _placeHoverController,
+          onEnter: _placeDropdownEnter,
+          onExit: _placeDropdownExit,
+          onSubmenuHoverChanged: _placeSubmenuHoverChanged,
+          onCommand: (command) {
+            widget.onCommand?.call(command);
+            _closePlaceOverlay();
+          },
+        );
+      },
+    );
+
+    overlay.insert(_placeOverlay!);
+  }
+
+  void _closePlaceOverlay() {
+    _placeHoverController.cancelClose();
+
+    _placeOverlay?.remove();
+    _placeOverlay = null;
+
+    if (mounted) {
+      setState(() {
+        if (hoveredMenu == 'Place') {
+          hoveredMenu = null;
+        }
+      });
+    }
+
+    _placeHoverController.reset();
+  }
+
+  // ==========================================================================
   // TOP LEVEL MENU
   // ==========================================================================
 
@@ -463,14 +507,20 @@ class _MenuBarWidgetState
       return;
     }
 
+    if (menu == 'Place') {
+      _placeEnter();
+      return;
+    }
+
     _closeEditOverlay();
     _closeViewOverlay();
+    _closePlaceOverlay();
 
-    if (mounted) {
-      setState(() {
-        hoveredMenu = menu;
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      hoveredMenu = menu;
+    });
   }
 
   void _menuExit(String menu) {
@@ -484,8 +534,14 @@ class _MenuBarWidgetState
       return;
     }
 
-    if (mounted &&
-        hoveredMenu == menu) {
+    if (menu == 'Place') {
+      _placeExit();
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (hoveredMenu == menu) {
       setState(() {
         hoveredMenu = null;
       });
@@ -503,6 +559,11 @@ class _MenuBarWidgetState
       return;
     }
 
+    if (menu == 'Place') {
+      _openPlaceOverlay();
+      return;
+    }
+
     widget.onMenuChanged(menu);
   }
 
@@ -514,12 +575,16 @@ class _MenuBarWidgetState
   void dispose() {
     _editHoverController.dispose();
     _viewHoverController.dispose();
+    _placeHoverController.dispose();
 
     _editOverlay?.remove();
     _editOverlay = null;
 
     _viewOverlay?.remove();
     _viewOverlay = null;
+
+    _placeOverlay?.remove();
+    _placeOverlay = null;
 
     super.dispose();
   }
@@ -560,151 +625,101 @@ class _MenuBarWidgetState
                 child: Row(
                   children: [
                     const SizedBox(
-                      width:
-                          CustomWindowBar
-                              .leftAlignment,
+                      width: CustomWindowBar.leftAlignment,
                     ),
                     for (final menu in menus)
                       _TopLevelMenuItem(
                         label: menu,
-                        active:
-                            widget.activeMenu ==
-                                menu,
-                        hovered:
-                            hoveredMenu ==
-                                menu,
-                        onEnter: () {
-                          _menuEnter(menu);
-                        },
-                        onExit: () {
-                          _menuExit(menu);
-                        },
-                        onTap: () {
-                          _menuTap(menu);
-                        },
+                        active: widget.activeMenu == menu,
+                        hovered: hoveredMenu == menu,
+                        onEnter: () => _menuEnter(menu),
+                        onExit: () => _menuExit(menu),
+                        onTap: () => _menuTap(menu),
                       ),
                   ],
                 ),
               ),
 
-              // ==============================================================
-              // FULLSCREEN ARROW
-              // ==============================================================
-
               Center(
                 child: MouseRegion(
-                  cursor:
-                      SystemMouseCursors.click,
+                  cursor: SystemMouseCursors.click,
                   onEnter: (_) {
+                    if (!mounted) return;
+
                     setState(() {
                       arrowHovered = true;
                     });
                   },
                   onExit: (_) {
+                    if (!mounted) return;
+
                     setState(() {
                       arrowHovered = false;
                     });
                   },
                   child: GestureDetector(
-                    behavior:
-                        HitTestBehavior.opaque,
-                    onTap:
-                        widget.onFullscreenPressed,
-                    child:
-                        TweenAnimationBuilder<
-                            double>(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: widget.onFullscreenPressed,
+                    child: TweenAnimationBuilder<double>(
                       tween: Tween<double>(
                         begin: 0,
-                        end: arrowHovered
-                            ? 1
-                            : 0,
+                        end: arrowHovered ? 1 : 0,
                       ),
-                      duration:
-                          const Duration(
+                      duration: const Duration(
                         milliseconds: 220,
                       ),
-                      curve:
-                          Curves.easeOutBack,
+                      curve: Curves.easeOutBack,
                       builder: (
                         context,
                         value,
                         child,
                       ) {
                         return Transform.translate(
-                          offset: Offset(
-                            0,
-                            -3 * value,
-                          ),
+                          offset: Offset(0, -3 * value),
                           child: Transform.scale(
-                            scale:
-                                1 +
-                                    (0.07 *
-                                        value),
+                            scale: 1 + (0.07 * value),
                             child: Container(
                               width: 38,
                               height: 27,
-                              decoration:
-                                  BoxDecoration(
-                                color:
-                                    Color.lerp(
+                              decoration: BoxDecoration(
+                                color: Color.lerp(
                                   Colors.transparent,
-                                  AppColors
-                                      .slateGray
-                                      .withOpacity(
-                                    0.82,
-                                  ),
+                                  AppColors.slateGray
+                                      .withOpacity(0.82),
                                   value,
                                 ),
                                 borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  6,
-                                ),
-                                border:
-                                    Border.all(
-                                  color:
-                                      Color.lerp(
-                                    Colors
-                                        .transparent,
-                                    AppColors
-                                        .signalOrange,
+                                    BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Color.lerp(
+                                    Colors.transparent,
+                                    AppColors.signalOrange,
                                     value,
                                   )!,
                                   width: 1,
                                 ),
-                                boxShadow:
-                                    value > 0
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors
-                                                  .signalOrange
-                                                  .withOpacity(
-                                                0.18 *
-                                                    value,
-                                              ),
-                                              blurRadius:
-                                                  12,
-                                              spreadRadius:
-                                                  1,
-                                              offset:
-                                                  const Offset(
-                                                0,
-                                                2,
-                                              ),
-                                            ),
-                                          ]
-                                        : null,
+                                boxShadow: value > 0
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors
+                                              .signalOrange
+                                              .withOpacity(
+                                            0.18 * value,
+                                          ),
+                                          blurRadius: 12,
+                                          spreadRadius: 1,
+                                          offset:
+                                              const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
                               ),
                               child: Icon(
                                 Icons
                                     .keyboard_arrow_up_rounded,
                                 size: 23,
-                                color:
-                                    Color.lerp(
-                                  Colors.white
-                                      .withOpacity(
-                                    0.72,
-                                  ),
+                                color: Color.lerp(
+                                  Colors.white.withOpacity(0.72),
                                   Colors.white,
                                   value,
                                 ),
@@ -718,6 +733,153 @@ class _MenuBarWidgetState
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// EDIT DROPDOWN
+// ============================================================================
+
+class _EditDropdownOverlay extends StatelessWidget {
+  final double left;
+  final double top;
+  final EditHoverController controller;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final VoidCallback onSubmenuHoverChanged;
+  final ValueChanged<String> onCommand;
+
+  const _EditDropdownOverlay({
+    required this.left,
+    required this.top,
+    required this.controller,
+    required this.onEnter,
+    required this.onExit,
+    required this.onSubmenuHoverChanged,
+    required this.onCommand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        onEnter: (_) => onEnter(),
+        onExit: (_) => onExit(),
+        child: Material(
+          color: Colors.transparent,
+          child: EditMenu(
+            controller: controller,
+            onSubmenuHoverChanged: onSubmenuHoverChanged,
+            onCommand: onCommand,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// VIEW DROPDOWN
+// ============================================================================
+
+class _ViewDropdownOverlay extends StatelessWidget {
+  final double left;
+  final double top;
+  final ViewHoverController controller;
+  final ViewSettings settings;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final ValueChanged<ViewUnit> onUnitChanged;
+  final ValueChanged<double> onGridSizeChanged;
+  final ValueChanged<GridType> onGridTypeChanged;
+  final ValueChanged<HighlightNetMode> onHighlightNetChanged;
+  final ValueChanged<String> onCommand;
+
+  const _ViewDropdownOverlay({
+    required this.left,
+    required this.top,
+    required this.controller,
+    required this.settings,
+    required this.onEnter,
+    required this.onExit,
+    required this.onUnitChanged,
+    required this.onGridSizeChanged,
+    required this.onGridTypeChanged,
+    required this.onHighlightNetChanged,
+    required this.onCommand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        onEnter: (_) => onEnter(),
+        onExit: (_) => onExit(),
+        child: Material(
+          color: Colors.transparent,
+          child: ViewMenu(
+            controller: controller,
+            settings: settings,
+            onUnitChanged: onUnitChanged,
+            onGridSizeChanged: onGridSizeChanged,
+            onGridTypeChanged: onGridTypeChanged,
+            onHighlightNetChanged: onHighlightNetChanged,
+            onCommand: onCommand,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// PLACE DROPDOWN
+// ============================================================================
+
+class _PlaceDropdownOverlay extends StatelessWidget {
+  final double left;
+  final double top;
+  final PlaceHoverController controller;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final VoidCallback onSubmenuHoverChanged;
+  final ValueChanged<String> onCommand;
+
+  const _PlaceDropdownOverlay({
+    required this.left,
+    required this.top,
+    required this.controller,
+    required this.onEnter,
+    required this.onExit,
+    required this.onSubmenuHoverChanged,
+    required this.onCommand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        onEnter: (_) => onEnter(),
+        onExit: (_) => onExit(),
+        child: Material(
+          color: Colors.transparent,
+          child: PlaceMenu(
+            controller: controller,
+            onSubmenuHoverChanged: onSubmenuHoverChanged,
+            onCommand: onCommand,
           ),
         ),
       ),
@@ -809,8 +971,7 @@ class EditHoverController {
 // TOP LEVEL MENU ITEM
 // ============================================================================
 
-class _TopLevelMenuItem
-    extends StatelessWidget {
+class _TopLevelMenuItem extends StatelessWidget {
   final String label;
   final bool active;
   final bool hovered;
@@ -830,53 +991,38 @@ class _TopLevelMenuItem
 
   @override
   Widget build(BuildContext context) {
-    final bool highlighted =
-        active || hovered;
+    final bool highlighted = active || hovered;
 
     return MouseRegion(
-      cursor:
-          SystemMouseCursors.click,
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => onEnter(),
       onExit: (_) => onExit(),
       child: GestureDetector(
-        behavior:
-            HitTestBehavior.opaque,
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: AnimatedContainer(
-          duration:
-              const Duration(milliseconds: 170),
-          curve:
-              Curves.easeOutCubic,
+          duration: const Duration(milliseconds: 170),
+          curve: Curves.easeOutCubic,
           height: 32,
-          margin:
-              const EdgeInsets.only(right: 3),
-          padding:
-              const EdgeInsets.symmetric(
-            horizontal: 13,
-          ),
-          decoration:
-              BoxDecoration(
+          margin: const EdgeInsets.only(right: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          decoration: BoxDecoration(
             color: active
-                ? AppColors.slateGray
-                    .withOpacity(0.68)
+                ? AppColors.slateGray.withOpacity(0.68)
                 : hovered
-                    ? AppColors.slateGray
-                        .withOpacity(0.34)
+                    ? AppColors.slateGray.withOpacity(0.34)
                     : Colors.transparent,
-            borderRadius:
-                BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(
               color: active
-                  ? AppColors.signalOrange
-                      .withOpacity(0.48)
+                  ? AppColors.signalOrange.withOpacity(0.48)
                   : Colors.transparent,
               width: 1,
             ),
             boxShadow: hovered
                 ? [
                     BoxShadow(
-                      color: AppColors
-                          .signalOrange
+                      color: AppColors.signalOrange
                           .withOpacity(0.08),
                       blurRadius: 9,
                     ),
@@ -884,23 +1030,18 @@ class _TopLevelMenuItem
                 : null,
           ),
           child: Stack(
-            alignment:
-                Alignment.center,
+            alignment: Alignment.center,
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.only(
-                  bottom: 3,
-                ),
+                padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
                   label,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 13.5,
-                    fontWeight:
-                        active
-                            ? FontWeight.w600
-                            : FontWeight.w500,
+                    fontWeight: active
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                     height: 1,
                   ),
                 ),
@@ -909,62 +1050,38 @@ class _TopLevelMenuItem
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child:
-                    TweenAnimationBuilder<
-                        double>(
-                  tween:
-                      Tween<double>(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(
                     begin: 0,
-                    end: highlighted
-                        ? 1
-                        : 0,
+                    end: highlighted ? 1 : 0,
                   ),
-                  duration:
-                      const Duration(
-                    milliseconds: 200,
-                  ),
-                  curve:
-                      Curves.easeOutCubic,
-                  builder:
-                      (
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  builder: (
                     context,
                     value,
                     child,
                   ) {
                     return Center(
-                      child:
-                          Container(
-                        width:
-                            34 * value,
-                        height:
-                            active
-                                ? 2.5
-                                : 2,
-                        decoration:
-                            BoxDecoration(
-                          color:
-                              AppColors
-                                  .signalOrange,
+                      child: Container(
+                        width: 34 * value,
+                        height: active ? 2.5 : 2,
+                        decoration: BoxDecoration(
+                          color: AppColors.signalOrange,
                           borderRadius:
-                              BorderRadius
-                                  .circular(
-                            10,
-                          ),
-                          boxShadow:
-                              value > 0
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors
-                                            .signalOrange
-                                            .withOpacity(
-                                          0.45 *
-                                              value,
-                                        ),
-                                        blurRadius:
-                                            5,
-                                      ),
-                                    ]
-                                  : null,
+                              BorderRadius.circular(10),
+                          boxShadow: value > 0
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors
+                                        .signalOrange
+                                        .withOpacity(
+                                      0.45 * value,
+                                    ),
+                                    blurRadius: 5,
+                                  ),
+                                ]
+                              : null,
                         ),
                       ),
                     );
@@ -972,136 +1089,6 @@ class _TopLevelMenuItem
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// EDIT DROPDOWN OVERLAY
-// ============================================================================
-
-class _EditDropdownOverlay
-    extends StatelessWidget {
-  final double left;
-  final double top;
-
-  final EditHoverController controller;
-
-  final VoidCallback onEnter;
-  final VoidCallback onExit;
-  final VoidCallback
-      onSubmenuHoverChanged;
-
-  final ValueChanged<String>
-      onCommand;
-
-  const _EditDropdownOverlay({
-    required this.left,
-    required this.top,
-    required this.controller,
-    required this.onEnter,
-    required this.onExit,
-    required this.onSubmenuHoverChanged,
-    required this.onCommand,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: left,
-      top: top,
-      child: MouseRegion(
-        cursor:
-            SystemMouseCursors.basic,
-        onEnter: (_) => onEnter(),
-        onExit: (_) => onExit(),
-        child: Material(
-          color: Colors.transparent,
-          child: EditMenu(
-            controller: controller,
-            onSubmenuHoverChanged:
-                onSubmenuHoverChanged,
-            onCommand: onCommand,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// VIEW DROPDOWN OVERLAY
-// ============================================================================
-
-class _ViewDropdownOverlay
-    extends StatelessWidget {
-  final double left;
-  final double top;
-
-  final ViewHoverController controller;
-
-  final ViewSettings settings;
-
-  final VoidCallback onEnter;
-  final VoidCallback onExit;
-
-  final ValueChanged<ViewUnit>
-      onUnitChanged;
-
-  final ValueChanged<double>
-      onGridSizeChanged;
-
-  final ValueChanged<GridType>
-      onGridTypeChanged;
-
-  final ValueChanged<HighlightNetMode>
-      onHighlightNetChanged;
-
-  final ValueChanged<String>
-      onCommand;
-
-  const _ViewDropdownOverlay({
-    required this.left,
-    required this.top,
-    required this.controller,
-    required this.settings,
-    required this.onEnter,
-    required this.onExit,
-    required this.onUnitChanged,
-    required this.onGridSizeChanged,
-    required this.onGridTypeChanged,
-    required this.onHighlightNetChanged,
-    required this.onCommand,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: left,
-      top: top,
-      child: MouseRegion(
-        cursor:
-            SystemMouseCursors.basic,
-        onEnter: (_) => onEnter(),
-        onExit: (_) => onExit(),
-        child: Material(
-          color: Colors.transparent,
-          child: ViewMenu(
-            controller: controller,
-            settings: settings,
-            onUnitChanged:
-                onUnitChanged,
-            onGridSizeChanged:
-                onGridSizeChanged,
-            onGridTypeChanged:
-                onGridTypeChanged,
-            onHighlightNetChanged:
-                onHighlightNetChanged,
-            onCommand:
-                onCommand,
           ),
         ),
       ),
