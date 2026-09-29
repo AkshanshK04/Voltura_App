@@ -87,7 +87,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
   bool _mouseInside = false;
   bool _initialised = false;
 
-  bool _fullScreen = false;
+    
 
   // ==========================================================================
   // CUSTOM PAN
@@ -460,14 +460,10 @@ class _SchematicSheetState extends State<SchematicSheet> {
   // ==========================================================================
 
   void _toggleFullScreen() {
-    _fullScreen = !_fullScreen;
-
-    // The parent application can listen to this
-    // command and control the actual window/fullscreen.
-    if (mounted) {
-      setState(() {});
-    }
-  }
+  // Fullscreen is owned by MainShell.
+  // The sheet only forwards the command upward.
+  widget.onCommand?.call('Full Screen');
+}
 
   // ==========================================================================
   // ZOOM

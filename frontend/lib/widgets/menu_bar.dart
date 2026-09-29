@@ -26,7 +26,8 @@ class MenuBarWidget extends StatefulWidget {
   });
 
   @override
-  State<MenuBarWidget> createState() => _MenuBarWidgetState();
+  State<MenuBarWidget> createState() =>
+      _MenuBarWidgetState();
 }
 
 class _MenuBarWidgetState extends State<MenuBarWidget> {
@@ -170,7 +171,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     final Offset menuBarPosition =
         renderBox.localToGlobal(Offset.zero);
 
-    final OverlayState overlay = Overlay.of(context);
+    final OverlayState overlay =
+        Overlay.of(context);
 
     _editOverlay = OverlayEntry(
       builder: (context) {
@@ -182,7 +184,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
           controller: _editHoverController,
           onEnter: _dropdownEnter,
           onExit: _dropdownExit,
-          onSubmenuHoverChanged: _submenuHoverChanged,
+          onSubmenuHoverChanged:
+              _submenuHoverChanged,
           onCommand: (command) {
             widget.onCommand?.call(command);
             _closeEditOverlay();
@@ -334,7 +337,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     final Offset menuBarPosition =
         renderBox.localToGlobal(Offset.zero);
 
-    final OverlayState overlay = Overlay.of(context);
+    final OverlayState overlay =
+        Overlay.of(context);
 
     _viewOverlay = OverlayEntry(
       builder: (context) {
@@ -481,7 +485,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     final Offset menuBarPosition =
         renderBox.localToGlobal(Offset.zero);
 
-    final OverlayState overlay = Overlay.of(context);
+    final OverlayState overlay =
+        Overlay.of(context);
 
     _placeOverlay = OverlayEntry(
       builder: (context) {
@@ -609,7 +614,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     final Offset menuBarPosition =
         renderBox.localToGlobal(Offset.zero);
 
-    final OverlayState overlay = Overlay.of(context);
+    final OverlayState overlay =
+        Overlay.of(context);
 
     _toolsOverlay = OverlayEntry(
       builder: (context) {
@@ -649,9 +655,9 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     _toolsHoverController.reset();
   }
 
-  // ============================================================================
+  // ==========================================================================
   // LIBRARY
-  // ============================================================================
+  // ==========================================================================
 
   void _libraryEnter() {
     _closeEditOverlay();
@@ -695,6 +701,7 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     _libraryHoverController.scheduleClose(
       onClose: () {
         if (!mounted) return;
+
         if (!_libraryHoverController.isInsideLibrarySystem) {
           _closeLibraryOverlay();
         }
@@ -709,21 +716,30 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     }
 
     final RenderBox? menuBox =
-        _libraryMenuKey.currentContext?.findRenderObject() as RenderBox?;
+        _libraryMenuKey.currentContext
+            ?.findRenderObject() as RenderBox?;
 
     if (menuBox == null) return;
 
-    final Offset position = menuBox.localToGlobal(Offset.zero);
-    final OverlayState overlay = Overlay.of(context);
+    final Offset position =
+        menuBox.localToGlobal(Offset.zero);
+
+    final OverlayState overlay =
+        Overlay.of(context);
 
     _libraryOverlay = OverlayEntry(
       builder: (context) {
         return _LibraryDropdownOverlay(
           left: position.dx,
-          top: position.dy + menuBox.size.height + 2,
-          controller: _libraryHoverController,
-          onEnter: _libraryDropdownEnter,
-          onExit: _libraryDropdownExit,
+          top: position.dy +
+              menuBox.size.height +
+              2,
+          controller:
+              _libraryHoverController,
+          onEnter:
+              _libraryDropdownEnter,
+          onExit:
+              _libraryDropdownExit,
           onCommand: (command) {
             widget.onCommand?.call(command);
             _closeLibraryOverlay();
@@ -737,10 +753,12 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 
   void _closeLibraryOverlay() {
     _libraryHoverController.cancelClose();
+
     _libraryOverlay?.remove();
     _libraryOverlay = null;
 
-    if (mounted && hoveredMenu == 'Library') {
+    if (mounted &&
+        hoveredMenu == 'Library') {
       setState(() {
         hoveredMenu = null;
       });
@@ -749,9 +767,9 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     _libraryHoverController.reset();
   }
 
-  // ============================================================================
+  // ==========================================================================
   // HELP
-  // ============================================================================
+  // ==========================================================================
 
   void _helpEnter() {
     _closeEditOverlay();
@@ -795,6 +813,7 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     _helpHoverController.scheduleClose(
       onClose: () {
         if (!mounted) return;
+
         if (!_helpHoverController.isInsideHelpSystem) {
           _closeHelpOverlay();
         }
@@ -809,21 +828,30 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
     }
 
     final RenderBox? menuBox =
-        _helpMenuKey.currentContext?.findRenderObject() as RenderBox?;
+        _helpMenuKey.currentContext
+            ?.findRenderObject() as RenderBox?;
 
     if (menuBox == null) return;
 
-    final Offset position = menuBox.localToGlobal(Offset.zero);
-    final OverlayState overlay = Overlay.of(context);
+    final Offset position =
+        menuBox.localToGlobal(Offset.zero);
+
+    final OverlayState overlay =
+        Overlay.of(context);
 
     _helpOverlay = OverlayEntry(
       builder: (context) {
         return _HelpDropdownOverlay(
           left: position.dx,
-          top: position.dy + menuBox.size.height + 2,
-          controller: _helpHoverController,
-          onEnter: _helpDropdownEnter,
-          onExit: _helpDropdownExit,
+          top: position.dy +
+              menuBox.size.height +
+              2,
+          controller:
+              _helpHoverController,
+          onEnter:
+              _helpDropdownEnter,
+          onExit:
+              _helpDropdownExit,
           onCommand: (command) {
             widget.onCommand?.call(command);
             _closeHelpOverlay();
@@ -837,10 +865,12 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 
   void _closeHelpOverlay() {
     _helpHoverController.cancelClose();
+
     _helpOverlay?.remove();
     _helpOverlay = null;
 
-    if (mounted && hoveredMenu == 'Help') {
+    if (mounted &&
+        hoveredMenu == 'Help') {
       setState(() {
         hoveredMenu = null;
       });
@@ -1012,38 +1042,74 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark =
+        Theme.of(context).brightness ==
+            Brightness.dark;
+
+    // ==========================================================
+    // MENU BAR THEME
+    // ==========================================================
+
+    final Color menuBarBackground = isDark
+        ? AppColors.darkBackground
+        : const Color(0xFF0E4635);
+
+    final Color menuBarTopBorder = isDark
+        ? AppColors.darkBorder
+        : const Color(0xFF174F40);
+
+    final Color menuBarBottomBorder = isDark
+        ? AppColors.darkBorder
+        : AppColors.slateGray;
+
     return Material(
       color: Colors.transparent,
+
       child: SizedBox(
         height: 44,
+
         child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0E4635),
+          decoration: BoxDecoration(
+            color: menuBarBackground,
+
             border: Border(
               top: BorderSide(
-                color: Color(0xFF174F40),
+                color: menuBarTopBorder,
                 width: 1,
               ),
+
               bottom: BorderSide(
-                color: Color(0xFF708090),
+                color: menuBarBottomBorder,
                 width: 1,
               ),
             ),
           ),
+
           child: Stack(
             alignment: Alignment.center,
             clipBehavior: Clip.none,
+
             children: [
+
+              // =================================================
+              // MENU ITEMS
+              // =================================================
+
               Positioned(
                 top: 6,
                 left: 0,
                 right: 0,
                 height: 32,
+
                 child: Row(
                   children: [
+
                     const SizedBox(
-                      width: CustomWindowBar.leftAlignment,
+                      width:
+                          CustomWindowBar
+                              .leftAlignment,
                     ),
+
                     for (final menu in menus)
                       _TopLevelMenuItem(
                         key: menu == 'Library'
@@ -1051,15 +1117,26 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                             : menu == 'Help'
                                 ? _helpMenuKey
                                 : null,
+
                         label: menu,
+
                         active:
-                            widget.activeMenu == menu,
+                            widget.activeMenu ==
+                                menu,
+
                         hovered:
-                            hoveredMenu == menu,
+                            hoveredMenu ==
+                                menu,
+
+                        isDark:
+                            isDark,
+
                         onEnter: () =>
                             _menuEnter(menu),
+
                         onExit: () =>
                             _menuExit(menu),
+
                         onTap: () =>
                             _menuTap(menu),
                       ),
@@ -1067,10 +1144,15 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                 ),
               ),
 
+              // =================================================
+              // FULLSCREEN ARROW
+              // =================================================
+
               Center(
                 child: MouseRegion(
                   cursor:
                       SystemMouseCursors.click,
+
                   onEnter: (_) {
                     if (!mounted) return;
 
@@ -1078,6 +1160,7 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                       arrowHovered = true;
                     });
                   },
+
                   onExit: (_) {
                     if (!mounted) return;
 
@@ -1085,22 +1168,35 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                       arrowHovered = false;
                     });
                   },
+
                   child: GestureDetector(
                     behavior:
                         HitTestBehavior.opaque,
+
                     onTap:
-                        widget.onFullscreenPressed,
+                        widget
+                            .onFullscreenPressed,
+
                     child:
-                        TweenAnimationBuilder<double>(
-                      tween: Tween<double>(
+                        TweenAnimationBuilder<
+                            double>(
+                      tween:
+                          Tween<double>(
                         begin: 0,
-                        end: arrowHovered ? 1 : 0,
+                        end:
+                            arrowHovered
+                                ? 1
+                                : 0,
                       ),
+
                       duration:
                           const Duration(
                         milliseconds: 220,
                       ),
-                      curve: Curves.easeOutBack,
+
+                      curve:
+                          Curves.easeOutBack,
+
                       builder: (
                         context,
                         value,
@@ -1108,36 +1204,57 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                       ) {
                         return Transform.translate(
                           offset:
-                              Offset(0, -3 * value),
-                          child: Transform.scale(
+                              Offset(
+                            0,
+                            -3 * value,
+                          ),
+
+                          child:
+                              Transform.scale(
                             scale:
-                                1 + (0.07 * value),
-                            child: Container(
+                                1 +
+                                    (0.07 *
+                                        value),
+
+                            child:
+                                Container(
                               width: 38,
                               height: 27,
+
                               decoration:
                                   BoxDecoration(
-                                color: Color.lerp(
+                                color:
+                                    Color.lerp(
                                   Colors.transparent,
                                   AppColors
                                       .slateGray
                                       .withOpacity(
-                                    0.82,
+                                    isDark
+                                        ? 0.35
+                                        : 0.82,
                                   ),
                                   value,
                                 ),
+
                                 borderRadius:
                                     BorderRadius
-                                        .circular(6),
-                                border: Border.all(
-                                  color: Color.lerp(
+                                        .circular(
+                                  6,
+                                ),
+
+                                border:
+                                    Border.all(
+                                  color:
+                                      Color.lerp(
                                     Colors.transparent,
                                     AppColors
                                         .signalOrange,
                                     value,
                                   )!,
+
                                   width: 1,
                                 ),
+
                                 boxShadow:
                                     value > 0
                                         ? [
@@ -1148,10 +1265,13 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                                                 0.18 *
                                                     value,
                                               ),
+
                                               blurRadius:
                                                   12,
+
                                               spreadRadius:
                                                   1,
+
                                               offset:
                                                   const Offset(
                                                 0,
@@ -1161,16 +1281,26 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
                                           ]
                                         : null,
                               ),
+
                               child: Icon(
                                 Icons
                                     .keyboard_arrow_up_rounded,
+
                                 size: 23,
-                                color: Color.lerp(
-                                  Colors.white
-                                      .withOpacity(
-                                    0.72,
-                                  ),
+
+                                color:
+                                    Color.lerp(
+                                  isDark
+                                      ? AppColors
+                                          .darkText
+                                      : Colors
+                                          .white
+                                          .withOpacity(
+                                          0.72,
+                                        ),
+
                                   Colors.white,
+
                                   value,
                                 ),
                               ),
@@ -1194,7 +1324,8 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
 // LIBRARY DROPDOWN
 // ============================================================================
 
-class _LibraryDropdownOverlay extends StatelessWidget {
+class _LibraryDropdownOverlay
+    extends StatelessWidget {
   final double left;
   final double top;
   final LibraryHoverController controller;
@@ -1216,12 +1347,17 @@ class _LibraryDropdownOverlay extends StatelessWidget {
     return Positioned(
       left: left,
       top: top,
+
       child: MouseRegion(
-        cursor: SystemMouseCursors.basic,
+        cursor:
+            SystemMouseCursors.basic,
+
         onEnter: (_) => onEnter(),
         onExit: (_) => onExit(),
+
         child: Material(
           color: Colors.transparent,
+
           child: LibraryMenu(
             controller: controller,
             onCommand: onCommand,
@@ -1236,7 +1372,8 @@ class _LibraryDropdownOverlay extends StatelessWidget {
 // HELP DROPDOWN
 // ============================================================================
 
-class _HelpDropdownOverlay extends StatelessWidget {
+class _HelpDropdownOverlay
+    extends StatelessWidget {
   final double left;
   final double top;
   final HelpHoverController controller;
@@ -1258,12 +1395,17 @@ class _HelpDropdownOverlay extends StatelessWidget {
     return Positioned(
       left: left,
       top: top,
+
       child: MouseRegion(
-        cursor: SystemMouseCursors.basic,
+        cursor:
+            SystemMouseCursors.basic,
+
         onEnter: (_) => onEnter(),
         onExit: (_) => onExit(),
+
         child: Material(
           color: Colors.transparent,
+
           child: HelpMenu(
             controller: controller,
             onCommand: onCommand,
@@ -1303,12 +1445,17 @@ class _EditDropdownOverlay
     return Positioned(
       left: left,
       top: top,
+
       child: MouseRegion(
-        cursor: SystemMouseCursors.basic,
+        cursor:
+            SystemMouseCursors.basic,
+
         onEnter: (_) => onEnter(),
         onExit: (_) => onExit(),
+
         child: Material(
           color: Colors.transparent,
+
           child: EditMenu(
             controller: controller,
             onSubmenuHoverChanged:
@@ -1331,16 +1478,24 @@ class _ViewDropdownOverlay
   final double top;
   final ViewHoverController controller;
   final ViewSettings settings;
+
   final VoidCallback onEnter;
   final VoidCallback onExit;
 
-  final ValueChanged<ViewUnit> onUnitChanged;
-  final ValueChanged<double> onGridSizeChanged;
-  final ValueChanged<GridType> onGridTypeChanged;
+  final ValueChanged<ViewUnit>
+      onUnitChanged;
+
+  final ValueChanged<double>
+      onGridSizeChanged;
+
+  final ValueChanged<GridType>
+      onGridTypeChanged;
+
   final ValueChanged<HighlightNetMode>
       onHighlightNetChanged;
 
-  final ValueChanged<String> onCommand;
+  final ValueChanged<String>
+      onCommand;
 
   const _ViewDropdownOverlay({
     required this.left,
@@ -1361,22 +1516,33 @@ class _ViewDropdownOverlay
     return Positioned(
       left: left,
       top: top,
+
       child: MouseRegion(
-        cursor: SystemMouseCursors.basic,
+        cursor:
+            SystemMouseCursors.basic,
+
         onEnter: (_) => onEnter(),
         onExit: (_) => onExit(),
+
         child: Material(
           color: Colors.transparent,
+
           child: ViewMenu(
             controller: controller,
             settings: settings,
-            onUnitChanged: onUnitChanged,
+
+            onUnitChanged:
+                onUnitChanged,
+
             onGridSizeChanged:
                 onGridSizeChanged,
+
             onGridTypeChanged:
                 onGridTypeChanged,
+
             onHighlightNetChanged:
                 onHighlightNetChanged,
+
             onCommand: onCommand,
           ),
         ),
@@ -1414,16 +1580,23 @@ class _PlaceDropdownOverlay
     return Positioned(
       left: left,
       top: top,
+
       child: MouseRegion(
-        cursor: SystemMouseCursors.basic,
+        cursor:
+            SystemMouseCursors.basic,
+
         onEnter: (_) => onEnter(),
         onExit: (_) => onExit(),
+
         child: Material(
           color: Colors.transparent,
+
           child: PlaceMenu(
             controller: controller,
+
             onSubmenuHoverChanged:
                 onSubmenuHoverChanged,
+
             onCommand: onCommand,
           ),
         ),
@@ -1459,12 +1632,17 @@ class _ToolsDropdownOverlay
     return Positioned(
       left: left,
       top: top,
+
       child: MouseRegion(
-        cursor: SystemMouseCursors.basic,
+        cursor:
+            SystemMouseCursors.basic,
+
         onEnter: (_) => onEnter(),
         onExit: (_) => onExit(),
+
         child: Material(
           color: Colors.transparent,
+
           child: ToolsMenu(
             controller: controller,
             onCommand: onCommand,
@@ -1564,6 +1742,7 @@ class _TopLevelMenuItem
   final String label;
   final bool active;
   final bool hovered;
+  final bool isDark;
 
   final VoidCallback onEnter;
   final VoidCallback onExit;
@@ -1574,6 +1753,7 @@ class _TopLevelMenuItem
     required this.label,
     required this.active,
     required this.hovered,
+    required this.isDark,
     required this.onEnter,
     required this.onExit,
     required this.onTap,
@@ -1584,106 +1764,192 @@ class _TopLevelMenuItem
     final bool highlighted =
         active || hovered;
 
+    final Color normalTextColor = isDark
+        ? AppColors.darkText
+        : Colors.white;
+
+    final Color activeBackground =
+        isDark
+            ? AppColors.darkSurface
+                .withOpacity(0.95)
+            : AppColors.slateGray
+                .withOpacity(0.68);
+
+    final Color hoverBackground =
+        isDark
+            ? AppColors.darkSurface
+                .withOpacity(0.70)
+            : AppColors.slateGray
+                .withOpacity(0.34);
+
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor:
+          SystemMouseCursors.click,
+
       onEnter: (_) => onEnter(),
       onExit: (_) => onExit(),
+
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        behavior:
+            HitTestBehavior.opaque,
+
         onTap: onTap,
+
         child: AnimatedContainer(
           duration:
-              const Duration(milliseconds: 170),
-          curve: Curves.easeOutCubic,
+              const Duration(
+            milliseconds: 170,
+          ),
+
+          curve:
+              Curves.easeOutCubic,
+
           height: 32,
+
           margin:
-              const EdgeInsets.only(right: 3),
+              const EdgeInsets.only(
+            right: 3,
+          ),
+
           padding:
               const EdgeInsets.symmetric(
             horizontal: 13,
           ),
-          decoration: BoxDecoration(
+
+          decoration:
+              BoxDecoration(
             color: active
-                ? AppColors.slateGray
-                    .withOpacity(0.68)
+                ? activeBackground
                 : hovered
-                    ? AppColors.slateGray
-                        .withOpacity(0.34)
+                    ? hoverBackground
                     : Colors.transparent,
+
             borderRadius:
                 BorderRadius.circular(5),
-            border: Border.all(
+
+            border:
+                Border.all(
               color: active
                   ? AppColors.signalOrange
-                      .withOpacity(0.48)
+                      .withOpacity(
+                      isDark
+                          ? 0.65
+                          : 0.48,
+                    )
                   : Colors.transparent,
+
               width: 1,
             ),
-            boxShadow: hovered
-                ? [
-                    BoxShadow(
-                      color: AppColors
-                          .signalOrange
-                          .withOpacity(0.08),
-                      blurRadius: 9,
-                    ),
-                  ]
-                : null,
+
+            boxShadow:
+                hovered
+                    ? [
+                        BoxShadow(
+                          color: AppColors
+                              .signalOrange
+                              .withOpacity(
+                            isDark
+                                ? 0.12
+                                : 0.08,
+                          ),
+
+                          blurRadius: 9,
+                        ),
+                      ]
+                    : null,
           ),
+
           child: Stack(
-            alignment: Alignment.center,
+            alignment:
+                Alignment.center,
+
             children: [
+
+              // =================================================
+              // MENU TEXT
+              // =================================================
+
               Padding(
                 padding:
                     const EdgeInsets.only(
                   bottom: 3,
                 ),
+
                 child: Text(
                   label,
+
                   style: TextStyle(
-                    color: Colors.white,
+                    color:
+                        normalTextColor,
+
                     fontSize: 13.5,
-                    fontWeight: active
-                        ? FontWeight.w600
-                        : FontWeight.w500,
+
+                    fontWeight:
+                        active
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+
                     height: 1,
                   ),
                 ),
               ),
+
+              // =================================================
+              // ORANGE UNDERLINE
+              // =================================================
+
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
+
                 child:
-                    TweenAnimationBuilder<double>(
-                  tween: Tween<double>(
+                    TweenAnimationBuilder<
+                        double>(
+                  tween:
+                      Tween<double>(
                     begin: 0,
-                    end: highlighted ? 1 : 0,
+                    end:
+                        highlighted
+                            ? 1
+                            : 0,
                   ),
+
                   duration:
                       const Duration(
                     milliseconds: 200,
                   ),
-                  curve: Curves.easeOutCubic,
+
+                  curve:
+                      Curves.easeOutCubic,
+
                   builder: (
                     context,
                     value,
                     child,
                   ) {
                     return Center(
-                      child: Container(
-                        width: 34 * value,
+                      child:
+                          Container(
+                        width:
+                            34 * value,
+
                         height:
-                            active ? 2.5 : 2,
+                            active
+                                ? 2.5
+                                : 2,
+
                         decoration:
                             BoxDecoration(
                           color: AppColors
                               .signalOrange,
+
                           borderRadius:
                               BorderRadius
                                   .circular(
                             10,
                           ),
+
                           boxShadow:
                               value > 0
                                   ? [
@@ -1694,6 +1960,7 @@ class _TopLevelMenuItem
                                           0.45 *
                                               value,
                                         ),
+
                                         blurRadius:
                                             5,
                                       ),
