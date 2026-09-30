@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -87,7 +88,8 @@ class _SchematicSheetState extends State<SchematicSheet> {
   bool _mouseInside = false;
   bool _initialised = false;
 
-    
+  bool _workspaceOpen = false;
+  bool _aiOpen = false;
 
   // ==========================================================================
   // CUSTOM PAN
@@ -460,10 +462,10 @@ class _SchematicSheetState extends State<SchematicSheet> {
   // ==========================================================================
 
   void _toggleFullScreen() {
-  // Fullscreen is owned by MainShell.
-  // The sheet only forwards the command upward.
-  widget.onCommand?.call('Full Screen');
-}
+    // Fullscreen is owned by MainShell.
+    // The sheet only forwards the command upward.
+    widget.onCommand?.call('Full Screen');
+  }
 
   // ==========================================================================
   // ZOOM
@@ -869,11 +871,76 @@ class _SchematicSheetState extends State<SchematicSheet> {
               ),
 
               // ===============================================================
-              // TOOLBAR
+              // TRANSPARENT OVERLAY
+              // ===============================================================
+
+              if (_workspaceOpen || _aiOpen)
+                Positioned.fill(
+                  child: _WorkspaceOverlay(
+                    workspaceOpen: _workspaceOpen,
+                    aiOpen: _aiOpen,
+                    onClose: () {
+                      setState(() {
+                        _workspaceOpen = false;
+                        _aiOpen = false;
+                      });
+                    },
+                    onSheetSelected: (sheetName) {
+                      widget.onCommand?.call(
+                        'Open Sheet: $sheetName',
+                      );
+                    },
+                  ),
+                ),
+
+              // ===============================================================
+              // FLOATING ACTION ICONS
+              // No side bar / no container / no rail.
               // ===============================================================
 
               Positioned(
-                right: 18,
+                right: 14,
+                top: 48,
+                child: _FloatingActionIcon(
+                  icon: Icons.folder_copy_outlined,
+                  tooltip: 'Workspace',
+                  active: _workspaceOpen,
+                  onTap: () {
+                    setState(() {
+                      _workspaceOpen = !_workspaceOpen;
+                      _aiOpen = false;
+                    });
+                  },
+                ),
+              ),
+
+              Positioned(
+                right: 14,
+                bottom: 48,
+                child: _FloatingActionIcon(
+                  icon: Icons.auto_awesome_outlined,
+                  tooltip: 'AI',
+                  active: _aiOpen,
+                  onTap: () {
+                    setState(() {
+                      _aiOpen = !_aiOpen;
+                      _workspaceOpen = false;
+                    });
+                  },
+                ),
+              ),
+
+              // ===============================================================
+              // TOOLBAR
+              // Overlay open  -> left
+              // Overlay closed -> right
+              // ===============================================================
+
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                left: _workspaceOpen || _aiOpen ? 18 : null,
+                right: _workspaceOpen || _aiOpen ? null : 64,
                 top: 50,
                 child: _CanvasToolbar(
                   zoom: _zoom,
@@ -900,6 +967,586 @@ class _SchematicSheetState extends State<SchematicSheet> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// FLOATING ACTION ICON
+// ============================================================================
+
+class _FloatingActionIcon extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _FloatingActionIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  State<_FloatingActionIcon> createState() =>
+      _FloatingActionIconState();
+}
+
+class _FloatingActionIconState extends State<_FloatingActionIcon> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final highlighted = widget.active || _hovered;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Tooltip(
+        message: widget.tooltip,
+        waitDuration: const Duration(milliseconds: 450),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: highlighted
+                  ? const Color(0xFFECEFF1).withOpacity(0.88)
+                  : Colors.transparent,
+              shape: BoxShape.circle,
+              boxShadow: highlighted
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: Icon(
+              widget.icon,
+              size: highlighted ? 20 : 19,
+              color: widget.active
+                  ? AppColors.signalOrange
+                  : const Color(0xFF4E5960),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// TRANSPARENT OVERLAY
+// ============================================================================
+
+class _WorkspaceOverlay extends StatelessWidget {
+  final bool workspaceOpen;
+  final bool aiOpen;
+  final VoidCallback onClose;
+  final ValueChanged<String> onSheetSelected;
+
+  const _WorkspaceOverlay({
+    required this.workspaceOpen,
+    required this.aiOpen,
+    required this.onClose,
+    required this.onSheetSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Completely transparent click-away layer.
+        // The schematic remains visible underneath.
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: onClose,
+            child: const SizedBox.expand(),
+          ),
+        ),
+
+        if (workspaceOpen)
+          Positioned(
+            top: 12,
+            bottom: 12,
+            right: 62,
+            width: 310,
+            child: _WorkspacePanel(
+              onClose: onClose,
+              onSheetSelected: onSheetSelected,
+            ),
+          ),
+
+        if (aiOpen)
+          Positioned(
+            top: 12,
+            bottom: 12,
+            right: 62,
+            width: 350,
+            child: _AiPanel(
+              onClose: onClose,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ============================================================================
+// WORKSPACE PANEL
+// ============================================================================
+
+class _WorkspacePanel extends StatelessWidget {
+  final VoidCallback onClose;
+  final ValueChanged<String> onSheetSelected;
+
+  const _WorkspacePanel({
+    required this.onClose,
+    required this.onSheetSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(
+          sigmaX: 14,
+          sigmaY: 14,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F9FA).withOpacity(0.82),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.72),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.13),
+                  blurRadius: 28,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _GlassPanelHeader(
+                  icon: Icons.folder_copy_outlined,
+                  title: 'WORKSPACE',
+                  onClose: onClose,
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 14, 16, 7),
+                  child: Text(
+                    'PROJECT EXPLORER',
+                    style: TextStyle(
+                      color: Color(0xFF7B858C),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.15,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      _WorkspaceFolder(
+                        title: 'Voltura Project',
+                        icon: Icons.folder_special_outlined,
+                        initiallyExpanded: true,
+                        children: [
+                          _WorkspaceFolder(
+                            title: 'Schematics',
+                            initiallyExpanded: true,
+                            children: [
+                              _WorkspaceSheet(
+                                title: 'Main Schematic',
+                                selected: true,
+                                onTap: () =>
+                                    onSheetSelected('Main Schematic'),
+                              ),
+                              _WorkspaceSheet(
+                                title: 'Power Supply',
+                                onTap: () =>
+                                    onSheetSelected('Power Supply'),
+                              ),
+                              _WorkspaceSheet(
+                                title: 'Controller',
+                                onTap: () =>
+                                    onSheetSelected('Controller'),
+                              ),
+                            ],
+                          ),
+                          _WorkspaceFolder(
+                            title: 'Hardware',
+                            children: [
+                              _WorkspaceSheet(
+                                title: 'PCB Layout',
+                                onTap: () =>
+                                    onSheetSelected('PCB Layout'),
+                              ),
+                              _WorkspaceSheet(
+                                title: '3D View',
+                                onTap: () =>
+                                    onSheetSelected('3D View'),
+                              ),
+                            ],
+                          ),
+                          _WorkspaceFolder(
+                            title: 'Libraries',
+                            children: [
+                              _WorkspaceFolder(
+                                title: 'Symbols',
+                                children: [
+                                  _WorkspaceSheet(
+                                    title: 'Passive Components',
+                                    onTap: () => onSheetSelected(
+                                      'Passive Components',
+                                    ),
+                                  ),
+                                  _WorkspaceSheet(
+                                    title: 'Connectors',
+                                    onTap: () =>
+                                        onSheetSelected('Connectors'),
+                                  ),
+                                ],
+                              ),
+                              _WorkspaceFolder(
+                                title: 'Footprints',
+                                children: [
+                                  _WorkspaceSheet(
+                                    title: 'Standard Footprints',
+                                    onTap: () => onSheetSelected(
+                                      'Standard Footprints',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          _WorkspaceFolder(
+                            title: 'Documentation',
+                            children: [
+                              _WorkspaceSheet(
+                                title: 'Project Notes',
+                                onTap: () =>
+                                    onSheetSelected('Project Notes'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// AI PANEL
+// ============================================================================
+
+class _AiPanel extends StatelessWidget {
+  final VoidCallback onClose;
+
+  const _AiPanel({
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(
+          sigmaX: 14,
+          sigmaY: 14,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F9FA).withOpacity(0.82),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.72),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.13),
+                  blurRadius: 28,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                _GlassPanelHeader(
+                  icon: Icons.auto_awesome_outlined,
+                  title: 'AI ASSISTANT',
+                  onClose: onClose,
+                ),
+                const Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome,
+                            size: 34,
+                            color: Color(0xFF7E898F),
+                          ),
+                          SizedBox(height: 14),
+                          Text(
+                            'AI workspace',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF3B454C),
+                            ),
+                          ),
+                          SizedBox(height: 7),
+                          Text(
+                            'Your schematic AI tools can appear here.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              height: 1.5,
+                              color: Color(0xFF78838A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// GLASS PANEL HEADER
+// ============================================================================
+
+class _GlassPanelHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onClose;
+
+  const _GlassPanelHeader({
+    required this.icon,
+    required this.title,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.24),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withOpacity(0.55),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: const Color(0xFF505B62),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.05,
+                color: Color(0xFF303940),
+              ),
+            ),
+          ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: onClose,
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 17,
+                  color: Color(0xFF68737A),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// WORKSPACE FOLDER
+// ============================================================================
+
+class _WorkspaceFolder extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final bool initiallyExpanded;
+  final List<Widget> children;
+
+  const _WorkspaceFolder({
+    required this.title,
+    required this.children,
+    this.icon = Icons.folder_outlined,
+    this.initiallyExpanded = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+        listTileTheme: const ListTileThemeData(
+          dense: true,
+          minVerticalPadding: 0,
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        tilePadding: const EdgeInsets.only(
+          left: 10,
+          right: 8,
+        ),
+        childrenPadding: const EdgeInsets.only(left: 12),
+        leading: Icon(
+          icon,
+          size: 17,
+          color: const Color(0xFF68747C),
+        ),
+        iconColor: const Color(0xFF68747C),
+        collapsedIconColor: const Color(0xFF68747C),
+        title: Text(
+          title,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF303940),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        children: children,
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// WORKSPACE SHEET
+// ============================================================================
+
+class _WorkspaceSheet extends StatelessWidget {
+  final String title;
+  final VoidCallback onTap;
+  final bool selected;
+
+  const _WorkspaceSheet({
+    required this.title,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 12,
+        right: 8,
+        bottom: 2,
+      ),
+      child: Material(
+        color: selected
+            ? const Color(0xFFFFE9D9)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(5),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(5),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 7,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.description_outlined,
+                  size: 15,
+                  color: selected
+                      ? AppColors.signalOrange
+                      : const Color(0xFF7C878E),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: selected
+                          ? const Color(0xFF9D4A15)
+                          : const Color(0xFF4D585F),
+                      fontWeight: selected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
