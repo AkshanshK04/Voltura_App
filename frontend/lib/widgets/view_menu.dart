@@ -30,16 +30,65 @@ enum HighlightNetMode {
 // VIEW SETTINGS
 // ============================================================================
 
-class ViewSettings {
-  ViewUnit unit = ViewUnit.inch;
+class ViewSettings extends ChangeNotifier {
+  ViewSettings._internal();
+
+  static final ViewSettings _shared = ViewSettings._internal();
+
+  /// Every part of the editor that uses ViewSettings() gets the same
+  /// source-of-truth instance. This keeps the View menu, schematic,
+  /// rulers, grid and status bar synchronized.
+  factory ViewSettings() => _shared;
+
+  ViewUnit _unit = ViewUnit.inch;
 
   // Canonical value is ALWAYS inches.
-  double gridSizeInches = 0.1;
+  double _gridSizeInches = 0.1;
 
-  GridType gridType = GridType.grid;
+  GridType _gridType = GridType.grid;
 
-  HighlightNetMode highlightNetMode =
+  HighlightNetMode _highlightNetMode =
       HighlightNetMode.highlight;
+
+  ViewUnit get unit => _unit;
+  double get gridSizeInches => _gridSizeInches;
+  GridType get gridType => _gridType;
+  HighlightNetMode get highlightNetMode => _highlightNetMode;
+
+  // Public setters are kept for compatibility with MenuBarWidget and any
+  // other widget that uses ViewSettings as the shared source of truth.
+  set unit(ViewUnit value) => setUnit(value);
+  set gridSizeInches(double value) => setGridSizeInches(value);
+  set gridType(GridType value) => setGridType(value);
+  set highlightNetMode(HighlightNetMode value) =>
+      setHighlightNetMode(value);
+
+  void setUnit(ViewUnit value) {
+    if (_unit == value) return;
+    _unit = value;
+    notifyListeners();
+  }
+
+  void setGridSizeInches(double value) {
+    if ((_gridSizeInches - value).abs() < 0.0000001) return;
+    _gridSizeInches = value;
+    notifyListeners();
+  }
+
+  void setGridType(GridType value) {
+    if (_gridType == value) return;
+    _gridType = value;
+    notifyListeners();
+  }
+
+  void setHighlightNetMode(HighlightNetMode value) {
+    if (_highlightNetMode == value) return;
+    _highlightNetMode = value;
+    notifyListeners();
+  }
+
+  // ViewSettings is a shared editor-wide object, so individual widgets
+  // must never dispose it.
 
   // --------------------------------------------------------------------------
   // GRID SIZE OPTIONS
@@ -171,7 +220,9 @@ class _ViewMenuState extends State<ViewMenu>
       return;
     }
 
-    widget.settings.unit = unit;
+    widget.settings.setUnit(unit);
+
+    if (mounted) setState(() {});
 
     widget.onUnitChanged?.call(unit);
 
@@ -191,7 +242,9 @@ class _ViewMenuState extends State<ViewMenu>
       return;
     }
 
-    widget.settings.gridSizeInches = inches;
+    widget.settings.setGridSizeInches(inches);
+
+    if (mounted) setState(() {});
 
     widget.onGridSizeChanged?.call(inches);
 
@@ -210,7 +263,9 @@ class _ViewMenuState extends State<ViewMenu>
       return;
     }
 
-    widget.settings.gridType = type;
+    widget.settings.setGridType(type);
+
+    if (mounted) setState(() {});
 
     widget.onGridTypeChanged?.call(type);
 
@@ -240,7 +295,9 @@ class _ViewMenuState extends State<ViewMenu>
       return;
     }
 
-    widget.settings.highlightNetMode = mode;
+    widget.settings.setHighlightNetMode(mode);
+
+    if (mounted) setState(() {});
 
     widget.onHighlightNetChanged?.call(mode);
 
