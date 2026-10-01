@@ -17,12 +17,17 @@ class MenuBarWidget extends StatefulWidget {
   final ValueChanged<String>? onCommand;
   final VoidCallback onFullscreenPressed;
 
+  /// Optional shared ViewSettings owned by the parent editor.
+  /// If omitted, ViewSettings() resolves to the editor-wide shared instance.
+  final ViewSettings? viewSettings;
+
   const MenuBarWidget({
     super.key,
     required this.activeMenu,
     required this.onMenuChanged,
     this.onCommand,
     required this.onFullscreenPressed,
+    this.viewSettings,
   });
 
   @override
@@ -62,7 +67,13 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
   final GlobalKey _libraryMenuKey = GlobalKey();
   final GlobalKey _helpMenuKey = GlobalKey();
 
-  final ViewSettings _viewSettings = ViewSettings();
+  late final ViewSettings _viewSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewSettings = widget.viewSettings ?? ViewSettings();
+  }
 
   final List<String> menus = const [
     'File',
@@ -302,24 +313,20 @@ class _MenuBarWidgetState extends State<MenuBarWidget> {
   }
 
   void _viewUnitChanged(ViewUnit unit) {
-    _viewSettings.unit = unit;
     _refreshViewOverlay();
   }
 
   void _viewGridSizeChanged(double inches) {
-    _viewSettings.gridSizeInches = inches;
     _refreshViewOverlay();
   }
 
   void _viewGridTypeChanged(GridType type) {
-    _viewSettings.gridType = type;
     _refreshViewOverlay();
   }
 
   void _viewHighlightNetChanged(
     HighlightNetMode mode,
   ) {
-    _viewSettings.highlightNetMode = mode;
     _refreshViewOverlay();
   }
 
