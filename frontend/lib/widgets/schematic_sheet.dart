@@ -24,6 +24,32 @@ enum SchematicHighlightMode {
   hoverWire,
 }
 
+const double _workspaceDockWidth = 286.0;
+const double _workspaceActivityBarWidth = 52.0;
+const double _sheetTabBarHeight = 40.0;
+
+// Theme-aware Voltura workbench colors. The rulers intentionally do NOT use
+// these colors: their drafting scale remains white in both light and dark mode.
+class _WorkbenchColors {
+  static bool _dark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+
+  static Color background(BuildContext context) =>
+      _dark(context) ? AppColors.darkBackground : AppColors.lightBackground;
+
+  static Color surface(BuildContext context) =>
+      _dark(context) ? AppColors.darkSurface : AppColors.lightSurface;
+
+  static Color text(BuildContext context) =>
+      _dark(context) ? AppColors.darkText : AppColors.lightText;
+
+  static Color subText(BuildContext context) =>
+      _dark(context) ? AppColors.darkSubText : AppColors.lightSubText;
+
+  static Color border(BuildContext context) =>
+      _dark(context) ? AppColors.darkBorder : AppColors.lightBorder;
+}
+
 class SchematicSheet extends StatefulWidget {
   final ValueChanged<String>? onCommand;
 
@@ -103,6 +129,9 @@ class _SchematicSheetState extends State<SchematicSheet> {
 
   bool _workspaceOpen = false;
   bool _aiOpen = false;
+
+  String _activeSheetName = 'Main Schematic';
+  final List<String> _openSheets = ['Main Schematic'];
 
     
 
@@ -193,6 +222,29 @@ class _SchematicSheetState extends State<SchematicSheet> {
       ..setEntry(2, 2, scale)
       ..setEntry(0, 3, translation.dx)
       ..setEntry(1, 3, translation.dy);
+  }
+
+  // Rulers belong to the editor viewport, not to the sheet frame.
+  // Their coordinate system is the same local canvas transform, so they stay
+  // fixed beside/above the canvas while the sheet moves underneath them.
+  Matrix4 _sheetHorizontalRulerTransform() {
+    return _controller.value;
+  }
+
+  Matrix4 _sheetVerticalRulerTransform() {
+    return _controller.value;
+  }
+
+  double _workspaceOffset() {
+    return _workspaceOpen ? _workspaceDockWidth : 0.0;
+  }
+
+  double _editorLeftInset() {
+    return _workspaceActivityBarWidth + _workspaceOffset();
+  }
+
+  double _editorTopInset() {
+    return _sheetTabBarHeight;
   }
 
   Offset screenToWorld(Offset screen) {
@@ -454,8 +506,12 @@ class _SchematicSheetState extends State<SchematicSheet> {
       }
 
       _fitPage(
-        constraints.maxWidth - rulerSize,
-        constraints.maxHeight - rulerSize,
+        constraints.maxWidth -
+            _workspaceActivityBarWidth -
+            rulerSize,
+        constraints.maxHeight -
+            _sheetTabBarHeight -
+            rulerSize,
       );
     });
   }
@@ -521,8 +577,13 @@ class _SchematicSheetState extends State<SchematicSheet> {
     final size = renderObject.size;
 
     _fitPage(
-      size.width - rulerSize,
-      size.height - rulerSize,
+      size.width -
+          _workspaceActivityBarWidth -
+          _workspaceOffset() -
+          rulerSize,
+      size.height -
+          _sheetTabBarHeight -
+          rulerSize,
     );
   }
 
@@ -633,8 +694,10 @@ class _SchematicSheetState extends State<SchematicSheet> {
     final size = renderObject.size;
 
     return Offset(
-      rulerSize + (size.width - rulerSize) / 2,
-      rulerSize + (size.height - rulerSize) / 2,
+      _workspaceActivityBarWidth + rulerSize +
+          (size.width - _workspaceActivityBarWidth - rulerSize) / 2,
+      _sheetTabBarHeight + rulerSize +
+          (size.height - _sheetTabBarHeight - rulerSize) / 2,
     );
   }
 
@@ -840,6 +903,16 @@ class _SchematicSheetState extends State<SchematicSheet> {
     );
   }
 
+  void _openWorkspaceSheet(String sheetName) {
+    setState(() {
+      _activeSheetName = sheetName;
+      if (!_openSheets.contains(sheetName)) {
+        _openSheets.add(sheetName);
+      }
+    });
+    widget.onCommand?.call('Open Sheet: $sheetName');
+  }
+
   // ==========================================================================
   // BUILD
   // ==========================================================================
@@ -847,7 +920,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFD7DCE0),
+      color: _WorkbenchColors.background(context),
       child: LayoutBuilder(
         builder: (
           context,
@@ -862,10 +935,12 @@ class _SchematicSheetState extends State<SchematicSheet> {
               // MAIN CANVAS
               // ===============================================================
 
-              Positioned(
-                left: rulerSize,
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                left: _editorLeftInset() + rulerSize,
                 right: 0,
-                top: rulerSize,
+                top: _sheetTabBarHeight + rulerSize,
                 bottom: 0,
                 child: MouseRegion(
                   cursor: _panMode
@@ -947,18 +1022,21 @@ class _SchematicSheetState extends State<SchematicSheet> {
               ),
 
               // ===============================================================
-              // TOP RULER
+              // EDITOR HORIZONTAL RULER
               // ===============================================================
-
+              //
+              // The scale is now part of the editor chrome. It is NOT attached
+              // to the sheet frame. It stays directly below the sheet tabs and
+              // starts immediately after the vertical ruler lane.
               Positioned(
-                left: rulerSize,
+                left: _editorLeftInset() + rulerSize,
                 right: 0,
-                top: 0,
+                top: _sheetTabBarHeight,
                 height: rulerSize,
                 child: ClipRect(
                   child: CustomPaint(
                     painter: EdaHorizontalRulerPainter(
-                      transform: _controller.value,
+                      transform: _sheetHorizontalRulerTransform(),
                       mouseWorld: _mouseWorld,
                       pixelsPerMm: pixelsPerMm,
                       unit: _unit,
@@ -968,18 +1046,17 @@ class _SchematicSheetState extends State<SchematicSheet> {
               ),
 
               // ===============================================================
-              // LEFT RULER
+              // EDITOR VERTICAL RULER
               // ===============================================================
-
               Positioned(
-                left: 0,
-                top: rulerSize,
+                left: _editorLeftInset(),
+                top: _sheetTabBarHeight + rulerSize,
                 width: rulerSize,
                 bottom: 0,
                 child: ClipRect(
                   child: CustomPaint(
                     painter: EdaVerticalRulerPainter(
-                      transform: _controller.value,
+                      transform: _sheetVerticalRulerTransform(),
                       mouseWorld: _mouseWorld,
                       pixelsPerMm: pixelsPerMm,
                       unit: _unit,
@@ -991,31 +1068,101 @@ class _SchematicSheetState extends State<SchematicSheet> {
               // ===============================================================
               // RULER CORNER
               // ===============================================================
+              Positioned(
+                left: _editorLeftInset(),
+                top: _sheetTabBarHeight,
+                width: rulerSize,
+                height: rulerSize,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _WorkbenchColors.surface(context),
+                    border: Border(
+                      right: BorderSide(color: _WorkbenchColors.border(context)),
+                      bottom: BorderSide(color: _WorkbenchColors.border(context)),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.add,
+                      size: 10,
+                      color: _WorkbenchColors.subText(context),
+                    ),
+                  ),
+                ),
+              ),
+
+              // ===============================================================
+              // WORKSPACE ACTIVITY BAR
+              // ===============================================================
 
               Positioned(
                 left: 0,
                 top: 0,
-                width: rulerSize,
-                height: rulerSize,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE7EAEC),
-                    border: Border(
-                      right: BorderSide(
-                        color: Color(0xFFB8BFC4),
-                      ),
-                      bottom: BorderSide(
-                        color: Color(0xFFB8BFC4),
-                      ),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.add,
-                      size: 10,
-                      color: Color(0xFF697177),
-                    ),
-                  ),
+                bottom: 0,
+                width: _workspaceActivityBarWidth,
+                child: _WorkspaceActivityBar(
+                  active: _workspaceOpen,
+                  onTap: () {
+                    setState(() {
+                      _workspaceOpen = !_workspaceOpen;
+                      _aiOpen = false;
+                    });
+                  },
+                ),
+              ),
+
+              // ===============================================================
+              // DOCKED WORKSPACE
+              // ===============================================================
+
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                left: _workspaceActivityBarWidth,
+                top: 0,
+                bottom: 0,
+                width: _workspaceOpen ? _workspaceDockWidth : 0,
+                child: ClipRect(
+                  child: _workspaceOpen
+                      ? _WorkspacePanel(
+                          onClose: () => setState(() => _workspaceOpen = false),
+                          onSheetSelected: _openWorkspaceSheet,
+                          activeSheet: _activeSheetName,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+
+              // ===============================================================
+              // OPEN SHEET TABS — EDITOR REGION
+              // ===============================================================
+
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                left: _editorLeftInset(),
+                right: 0,
+                top: 0,
+                height: _sheetTabBarHeight,
+                child: _SheetTabBar(
+                  sheets: _openSheets,
+                  activeSheet: _activeSheetName,
+                  onSelect: (name) {
+                    setState(() => _activeSheetName = name);
+                    widget.onCommand?.call('Open Sheet: $name');
+                  },
+                  onClose: (name) {
+                    if (_openSheets.length == 1) return;
+                    setState(() {
+                      _openSheets.remove(name);
+                      if (_activeSheetName == name) {
+                        _activeSheetName = _openSheets.last;
+                      }
+                    });
+                  },
+                  onAdd: () {
+                    widget.onCommand?.call('New Sheet');
+                  },
                 ),
               ),
 
@@ -1023,10 +1170,10 @@ class _SchematicSheetState extends State<SchematicSheet> {
               // TRANSPARENT WORKSPACE / AI OVERLAY
               // ===============================================================
 
-              if (_workspaceOpen || _aiOpen)
+              if (_aiOpen)
                 Positioned.fill(
                   child: _WorkspaceOverlay(
-                    workspaceOpen: _workspaceOpen,
+                    workspaceOpen: false,
                     aiOpen: _aiOpen,
                     onClose: () {
                       setState(() {
@@ -1038,29 +1185,12 @@ class _SchematicSheetState extends State<SchematicSheet> {
                       widget.onCommand?.call(
                         'Open Sheet: $sheetName',
                       );
+                      setState(() {
+                        _workspaceOpen = false;
+                      });
                     },
                   ),
                 ),
-
-              // ===============================================================
-              // FLOATING WORKSPACE ICON
-              // ===============================================================
-
-              Positioned(
-                right: 14,
-                top: 48,
-                child: _FloatingActionIcon(
-                  icon: Icons.folder_copy_outlined,
-                  tooltip: 'Workspace',
-                  active: _workspaceOpen,
-                  onTap: () {
-                    setState(() {
-                      _workspaceOpen = !_workspaceOpen;
-                      _aiOpen = false;
-                    });
-                  },
-                ),
-              ),
 
               // ===============================================================
               // FLOATING AI ICON
@@ -1086,12 +1216,18 @@ class _SchematicSheetState extends State<SchematicSheet> {
               // TOOLBAR
               // ===============================================================
 
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                left: _workspaceOpen || _aiOpen ? 18 : null,
-                right: _workspaceOpen || _aiOpen ? null : 64,
-                top: 50,
+              // ===============================================================
+              // CANVAS-FIXED ZOOM CONTROLS
+              //
+              // These controls belong to the editor canvas viewport, not to
+              // the sheet transform and not to the workspace/AI overlays.
+              // They therefore stay at a fixed canvas position while the
+              // sheet itself pans and zooms underneath them.
+              // ===============================================================
+
+              Positioned(
+                left: _editorLeftInset() + rulerSize + 12,
+                top: _sheetTabBarHeight + rulerSize + 12,
                 child: _CanvasToolbar(
                   zoom: _zoom,
                   onZoomIn: _zoomIn,
@@ -1105,9 +1241,16 @@ class _SchematicSheetState extends State<SchematicSheet> {
               // STATUS
               // ===============================================================
 
+              // ===============================================================
+              // CANVAS-FIXED X / Y / GRID STATUS
+              //
+              // Anchored to the canvas viewport rather than the sheet, so
+              // panning/zooming the sheet never drags this control around.
+              // ===============================================================
+
               Positioned(
-                left: 50,
-                bottom: 5,
+                left: _editorLeftInset() + rulerSize + 12,
+                bottom: 12,
                 child: _CanvasStatus(
                   mouseWorld: _mouseWorld,
                   gridMm: _gridMm,
@@ -1126,6 +1269,230 @@ class _SchematicSheetState extends State<SchematicSheet> {
 // ============================================================================
 // FLOATING WORKSPACE / AI ACTION ICON
 // ============================================================================
+
+class _WorkspaceActivityBar extends StatelessWidget {
+  final bool active;
+  final VoidCallback onTap;
+
+  const _WorkspaceActivityBar({
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: _WorkbenchColors.background(context),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Tooltip(
+            message: 'Workspace',
+            waitDuration: const Duration(milliseconds: 350),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: active
+                        ? _WorkbenchColors.background(context)
+                        : Colors.transparent,
+                    border: Border(
+                      left: BorderSide(
+                        color: active
+                            ? AppColors.signalOrange
+                            : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.folder_copy_outlined,
+                    size: 22,
+                    color: active
+                        ? AppColors.signalOrange
+                        : _WorkbenchColors.subText(context),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: 24,
+            height: 1,
+            color: _WorkbenchColors.border(context),
+          ),
+          const SizedBox(height: 14),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Icon(
+              Icons.settings_outlined,
+              size: 17,
+              color: _WorkbenchColors.subText(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetTabBar extends StatelessWidget {
+  final List<String> sheets;
+  final String activeSheet;
+  final ValueChanged<String> onSelect;
+  final ValueChanged<String> onClose;
+  final VoidCallback onAdd;
+
+  const _SheetTabBar({
+    required this.sheets,
+    required this.activeSheet,
+    required this.onSelect,
+    required this.onClose,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _WorkbenchColors.surface(context),
+        border: Border(
+          bottom: BorderSide(
+            color: _WorkbenchColors.border(context),
+            width: 0.8,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 4),
+              itemCount: sheets.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 1),
+              itemBuilder: (context, index) {
+                final sheet = sheets[index];
+                final selected = sheet == activeSheet;
+                return _SheetTab(
+                  title: sheet,
+                  selected: selected,
+                  onTap: () => onSelect(sheet),
+                  onClose: () => onClose(sheet),
+                );
+              },
+            ),
+          ),
+          Tooltip(
+            message: 'New Sheet',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onAdd,
+                child: const SizedBox(
+                  width: 40,
+                  height: _sheetTabBarHeight,
+                  child: Icon(
+                    Icons.add,
+                    size: 18,
+                    color: Color(0xFF9BA5AB),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetTab extends StatelessWidget {
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onClose;
+
+  const _SheetTab({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
+          padding: const EdgeInsets.only(left: 13, right: 7),
+          decoration: BoxDecoration(
+            color: selected ? _WorkbenchColors.background(context) : _WorkbenchColors.surface(context),
+            border: Border(
+              top: BorderSide(
+                color: selected
+                    ? AppColors.signalOrange
+                    : Colors.transparent,
+                width: 2.2,
+              ),
+              left: BorderSide(color: _WorkbenchColors.border(context)),
+              right: BorderSide(color: _WorkbenchColors.border(context)),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.description_outlined,
+                size: 14,
+                color: selected
+                    ? AppColors.signalOrange
+                    : _WorkbenchColors.subText(context),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: _WorkbenchColors.text(context),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              InkWell(
+                onTap: onClose,
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close,
+                    size: 13,
+                    color: Color(0xFF7A848A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _FloatingActionIcon extends StatefulWidget {
   final IconData icon;
@@ -1240,27 +1607,6 @@ class _WorkspaceOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Fully transparent click-away layer. The schematic remains visible.
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: onClose,
-            child: const SizedBox.expand(),
-          ),
-        ),
-
-        if (workspaceOpen)
-          Positioned(
-            top: 12,
-            bottom: 12,
-            right: 62,
-            width: 310,
-            child: _WorkspacePanel(
-              onClose: onClose,
-              onSheetSelected: onSheetSelected,
-            ),
-          ),
-
         if (aiOpen)
           Positioned(
             top: 12,
@@ -1297,10 +1643,10 @@ class _GlassPanelHeader extends StatelessWidget {
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 15),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.025),
+        color: _WorkbenchColors.surface(context),
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withOpacity(0.12),
+            color: _WorkbenchColors.border(context),
           ),
         ),
       ),
@@ -1309,7 +1655,7 @@ class _GlassPanelHeader extends StatelessWidget {
           Icon(
             icon,
             size: 18,
-            color: const Color(0xFF505B62),
+            color: _WorkbenchColors.subText(context),
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -1351,47 +1697,28 @@ class _GlassPanelHeader extends StatelessWidget {
 class _WorkspacePanel extends StatelessWidget {
   final VoidCallback onClose;
   final ValueChanged<String> onSheetSelected;
+  final String activeSheet;
 
   const _WorkspacePanel({
     required this.onClose,
     required this.onSheetSelected,
+    required this.activeSheet,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(
-          sigmaX: 24,
-          sigmaY: 24,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              // Same ultra-light glass opacity as the floating Workspace / AI icons.
-              color: Colors.white.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.18),
-                width: 0.8,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.025),
-                  blurRadius: 18,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 5),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.08),
-                  blurRadius: 12,
-                  spreadRadius: -4,
-                ),
-              ],
+    return Material(
+      color: _WorkbenchColors.surface(context),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(
+              color: _WorkbenchColors.border(context),
+              width: 1,
             ),
-            child: Column(
+          ),
+        ),
+        child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _GlassPanelHeader(
@@ -1404,7 +1731,7 @@ class _WorkspacePanel extends StatelessWidget {
                   child: Text(
                     'PROJECT EXPLORER',
                     style: TextStyle(
-                      color: Color(0xFF7B858C),
+                      color: Color(0xFF77838B),
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.15,
@@ -1427,15 +1754,17 @@ class _WorkspacePanel extends StatelessWidget {
                             children: [
                               _WorkspaceSheet(
                                 title: 'Main Schematic',
-                                selected: true,
+                                selected: activeSheet == 'Main Schematic',
                                 onTap: () => onSheetSelected('Main Schematic'),
                               ),
                               _WorkspaceSheet(
                                 title: 'Power Supply',
+                                selected: activeSheet == 'Power Supply',
                                 onTap: () => onSheetSelected('Power Supply'),
                               ),
                               _WorkspaceSheet(
                                 title: 'Controller',
+                                selected: activeSheet == 'Controller',
                                 onTap: () => onSheetSelected('Controller'),
                               ),
                             ],
@@ -1445,10 +1774,12 @@ class _WorkspacePanel extends StatelessWidget {
                             children: [
                               _WorkspaceSheet(
                                 title: 'PCB Layout',
+                                selected: activeSheet == 'PCB Layout',
                                 onTap: () => onSheetSelected('PCB Layout'),
                               ),
                               _WorkspaceSheet(
                                 title: '3D View',
+                                selected: activeSheet == '3D View',
                                 onTap: () => onSheetSelected('3D View'),
                               ),
                             ],
@@ -1461,10 +1792,12 @@ class _WorkspacePanel extends StatelessWidget {
                                 children: [
                                   _WorkspaceSheet(
                                     title: 'Passive Components',
+                                    selected: activeSheet == 'Passive Components',
                                     onTap: () => onSheetSelected('Passive Components'),
                                   ),
                                   _WorkspaceSheet(
                                     title: 'Connectors',
+                                    selected: activeSheet == 'Connectors',
                                     onTap: () => onSheetSelected('Connectors'),
                                   ),
                                 ],
@@ -1474,6 +1807,7 @@ class _WorkspacePanel extends StatelessWidget {
                                 children: [
                                   _WorkspaceSheet(
                                     title: 'Standard Footprints',
+                                    selected: activeSheet == 'Standard Footprints',
                                     onTap: () => onSheetSelected('Standard Footprints'),
                                   ),
                                 ],
@@ -1485,6 +1819,7 @@ class _WorkspacePanel extends StatelessWidget {
                             children: [
                               _WorkspaceSheet(
                                 title: 'Project Notes',
+                                selected: activeSheet == 'Project Notes',
                                 onTap: () => onSheetSelected('Project Notes'),
                               ),
                             ],
@@ -1497,9 +1832,7 @@ class _WorkspacePanel extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
+      );
   }
 }
 
@@ -2354,7 +2687,7 @@ class EdaHorizontalRulerPainter extends CustomPainter {
   ) {
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = const Color(0xFFF1F3F4),
+      Paint()..color = Colors.white,
     );
 
     final scale = transform.getMaxScaleOnAxis();
@@ -2382,7 +2715,7 @@ class EdaHorizontalRulerPainter extends CustomPainter {
         (firstWorld / spacing).floor() * spacing;
 
     final tickPaint = Paint()
-      ..color = const Color(0xFF697177)
+      ..color = const Color(0xFF4B5358)
       ..strokeWidth = 1;
 
     for (
@@ -2470,7 +2803,7 @@ class EdaHorizontalRulerPainter extends CustomPainter {
         size.height - 0.5,
       ),
       Paint()
-        ..color = const Color(0xFFB5BDC2)
+        ..color = const Color(0xFFD0D5D8)
         ..strokeWidth = 1,
     );
   }
@@ -2483,8 +2816,8 @@ class EdaHorizontalRulerPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(
-          color: Color(0xFF596168),
+        style: TextStyle(
+          color: const Color(0xFF4B5358),
           fontSize: 9,
           fontWeight: FontWeight.w600,
         ),
@@ -2545,7 +2878,7 @@ class EdaVerticalRulerPainter extends CustomPainter {
   ) {
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = const Color(0xFFF1F3F4),
+      Paint()..color = Colors.white,
     );
 
     final scale = transform.getMaxScaleOnAxis();
@@ -2573,7 +2906,7 @@ class EdaVerticalRulerPainter extends CustomPainter {
         (firstWorld / spacing).floor() * spacing;
 
     final paint = Paint()
-      ..color = const Color(0xFF697177)
+      ..color = const Color(0xFF4B5358)
       ..strokeWidth = 1;
 
     for (
@@ -2609,7 +2942,7 @@ class EdaVerticalRulerPainter extends CustomPainter {
               y / pixelsPerMm,
             ),
             style: const TextStyle(
-              color: Color(0xFF596168),
+              color: const Color(0xFF4B5358),
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
@@ -2667,7 +3000,7 @@ class EdaVerticalRulerPainter extends CustomPainter {
         size.height,
       ),
       Paint()
-        ..color = const Color(0xFFB5BDC2)
+        ..color = const Color(0xFFD0D5D8)
         ..strokeWidth = 1,
     );
   }
