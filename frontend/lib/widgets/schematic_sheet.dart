@@ -2556,48 +2556,202 @@ class EdaSchematicSheetPainter extends CustomPainter {
       height,
     );
 
-    // The title block is intentionally more opaque than the sheet grid so
-    // text remains readable without making the whole sheet look solid.
-    canvas.drawRect(
-      block,
-      Paint()..color = Colors.white.withOpacity(0.86),
+    // A stronger paper fill and contrast make the information readable at
+    // ordinary sheet zoom without changing the title block's footprint.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(block, const Radius.circular(1.5)),
+      Paint()..color = const Color(0xFFFDFEFE).withOpacity(0.97),
     );
 
     final border = Paint()
-      ..color = const Color(0xFF30363B)
+      ..color = const Color(0xFF263238)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 2.4;
 
     final line = Paint()
-      ..color = const Color(0xFF737A80)
-      ..strokeWidth = 1;
+      ..color = const Color(0xFF8B969D)
+      ..strokeWidth = 1.25;
+
+    final accent = Paint()
+      ..color = const Color(0xFFFF8C00)
+      ..strokeWidth = 5.0
+      ..strokeCap = StrokeCap.square;
 
     canvas.drawRect(block, border);
+    // Small Voltura-orange marker adds hierarchy without changing the sheet UI.
+    canvas.drawLine(
+      Offset(block.left + 2, block.top + 2),
+      Offset(block.left + 2, block.bottom - 2),
+      accent,
+    );
 
-    final row1 = block.top + block.height * 0.30;
-    final row2 = block.top + block.height * 0.58;
-    final row3 = block.top + block.height * 0.80;
+    final rowHeight = block.height / 5;
+    final rowLines = List<double>.generate(
+      4,
+      (index) => block.top + rowHeight * (index + 1),
+    );
+    for (final y in rowLines) {
+      canvas.drawLine(Offset(block.left, y), Offset(block.right, y), line);
+    }
 
-    canvas.drawLine(Offset(block.left, row1), Offset(block.right, row1), line);
-    canvas.drawLine(Offset(block.left, row2), Offset(block.right, row2), line);
-    canvas.drawLine(Offset(block.left, row3), Offset(block.right, row3), line);
+    const padding = 20.0;
+    final row1Top = block.top + 5;
+    final row2Top = block.top + rowHeight + 5;
+    final row3Top = block.top + rowHeight * 2 + 5;
+    final row4Top = block.top + rowHeight * 3 + 5;
+    final row5Top = block.top + rowHeight * 4 + 5;
 
-    final col1 = block.left + block.width * 0.52;
-    final col2 = block.left + block.width * 0.76;
+    // 1. Comments — leave the remainder of the row open for notes.
+    _blockText(
+      canvas,
+      'COMMENTS',
+      Offset(block.left + padding, row1Top),
+      fontSize: 15,
+      bold: true,
+      color: const Color(0xFF65727A),
+      letterSpacing: 1.4,
+    );
 
-    canvas.drawLine(Offset(col1, row2), Offset(col1, block.bottom), line);
-    canvas.drawLine(Offset(col2, row2), Offset(col2, block.bottom), line);
+    // 2. Sheet and file identifiers.
+    _blockText(
+      canvas,
+      'SHEET',
+      Offset(block.left + padding, row2Top),
+      fontSize: 12,
+      bold: true,
+      color: const Color(0xFF65727A),
+      letterSpacing: 1.1,
+    );
+    _blockText(
+      canvas,
+      'Main Schematic',
+      Offset(block.left + padding + 66, row2Top - 1),
+      fontSize: 18,
+      bold: true,
+    );
+    _blockText(
+      canvas,
+      'FILE',
+      Offset(block.left + block.width * 0.57, row2Top),
+      fontSize: 12,
+      bold: true,
+      color: const Color(0xFF65727A),
+      letterSpacing: 1.1,
+    );
+    _blockText(
+      canvas,
+      '—',
+      Offset(block.left + block.width * 0.57 + 48, row2Top - 1),
+      fontSize: 18,
+    );
 
-    _blockText(canvas, 'VOLTURA', Offset(block.left + 18, block.top + 15), fontSize: 28, bold: true);
-    _blockText(canvas, 'ENGINEERING DESIGN', Offset(block.left + 19, block.top + 52), fontSize: 13, bold: true);
-    _blockText(canvas, 'PROJECT', Offset(block.left + 16, row1 + 12));
-    _blockText(canvas, 'MAIN SCHEMATIC', Offset(block.left + 16, row1 + 36), fontSize: 15, bold: true);
-    _blockText(canvas, 'SHEET', Offset(block.left + 16, row2 + 12));
-    _blockText(canvas, 'A3', Offset(col1 + 14, row2 + 12), fontSize: 15, bold: true);
-    _blockText(canvas, 'REV', Offset(col2 + 14, row2 + 12));
-    _blockText(canvas, 'DRAWN', Offset(block.left + 16, row3 + 10));
-    _blockText(canvas, '01', Offset(col1 + 14, row3 + 10), fontSize: 15, bold: true);
-    _blockText(canvas, '1.0', Offset(col2 + 14, row3 + 10), fontSize: 15, bold: true);
+    // 3. Drawing title.
+    _blockText(
+      canvas,
+      'TITLE',
+      Offset(block.left + padding, row3Top + 1),
+      fontSize: 12,
+      bold: true,
+      color: const Color(0xFF65727A),
+      letterSpacing: 1.1,
+    );
+    _blockText(
+      canvas,
+      'Main Schematic',
+      Offset(block.left + padding + 66, row3Top - 2),
+      fontSize: 20,
+      bold: true,
+      color: const Color(0xFF202A30),
+    );
+
+    // 4. Paper size, machine-local date, and revision.
+    final now = DateTime.now();
+    final localDate =
+        '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+    final metaY = row4Top + 2;
+    final col1 = block.left + block.width * 0.31;
+    final col2 = block.left + block.width * 0.70;
+
+    canvas.drawLine(
+      Offset(col1, block.top + rowHeight * 3),
+      Offset(col1, block.top + rowHeight * 4),
+      line,
+    );
+    canvas.drawLine(
+      Offset(col2, block.top + rowHeight * 3),
+      Offset(col2, block.top + rowHeight * 4),
+      line,
+    );
+
+    _blockText(
+      canvas,
+      'SIZE',
+      Offset(block.left + padding, metaY),
+      fontSize: 12,
+      bold: true,
+      color: const Color(0xFF65727A),
+      letterSpacing: 1.0,
+    );
+    _blockText(
+      canvas,
+      'A3',
+      Offset(block.left + padding + 47, metaY - 1),
+      fontSize: 18,
+      bold: true,
+    );
+    _blockText(
+      canvas,
+      'DATE',
+      Offset(col1 + 12, metaY),
+      fontSize: 12,
+      bold: true,
+      color: const Color(0xFF65727A),
+      letterSpacing: 1.0,
+    );
+    _blockText(
+      canvas,
+      localDate,
+      Offset(col1 + 62, metaY),
+      fontSize: 16,
+    );
+    _blockText(
+      canvas,
+      'REV',
+      Offset(col2 + 12, metaY),
+      fontSize: 12,
+      bold: true,
+      color: const Color(0xFF65727A),
+      letterSpacing: 1.0,
+    );
+    _blockText(
+      canvas,
+      '1.0',
+      Offset(col2 + 54, metaY - 1),
+      fontSize: 18,
+      bold: true,
+    );
+
+    // 5. Voltura branding — high contrast and a clear typographic hierarchy.
+    _blockText(
+      canvas,
+      'VOLTURA',
+      Offset(block.left + padding, row5Top - 1),
+      fontSize: 21,
+      bold: true,
+      color: const Color(0xFF1F2D33),
+      letterSpacing: 1.6,
+    );
+    _blockText(
+      canvas,
+      'V 1.0.0  BY FOURAM LABS',
+      Offset(block.left + padding + 150, row5Top + 4),
+      fontSize: 15,
+      bold: true,
+      color: const Color(0xFF526169),
+      letterSpacing: 0.7,
+    );
   }
 
   void _zoneText(Canvas canvas, String text, Offset position) {
@@ -2638,15 +2792,17 @@ class EdaSchematicSheetPainter extends CustomPainter {
     Offset position, {
     double fontSize = 12,
     bool bold = false,
+    Color color = const Color(0xFF30363B),
+    double letterSpacing = 0.5,
   }) {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
-          color: const Color(0xFF30363B),
+          color: color,
           fontSize: fontSize,
           fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-          letterSpacing: 0.5,
+          letterSpacing: letterSpacing,
         ),
       ),
       textDirection: TextDirection.ltr,
