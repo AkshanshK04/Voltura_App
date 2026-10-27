@@ -86,13 +86,19 @@ class _CustomWindowBarState
           // VOLTURA LOGO
           // =====================================================
 
-          SizedBox(
-            width: 30,
-            height: 30,
-
-            child: Image.asset(
-              'assets/images/voltura_logo.png',
-              fit: BoxFit.contain,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: SizedBox(
+              key: ValueKey<bool>(isDark),
+              height: 28,
+              width: isDark ? null : 30,
+              child: Image.asset(
+                isDark
+                    ? 'assets/images/voltura_logo_dark.png'
+                    : 'assets/images/voltura_logo.png',
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
             ),
           ),
 

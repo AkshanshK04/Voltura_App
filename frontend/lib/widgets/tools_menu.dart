@@ -381,15 +381,11 @@ class _ToolsMenuSurfaceState
 class _ToolsMenuRow extends StatefulWidget {
   final IconData? icon;
   final String title;
-  final String? shortcut;
-  final bool selected;
   final VoidCallback onTap;
 
   const _ToolsMenuRow({
     this.icon,
     required this.title,
-    this.shortcut,
-    this.selected = false,
     required this.onTap,
   });
 
@@ -481,12 +477,7 @@ class _ToolsMenuRowState
             borderRadius: BorderRadius.circular(5),
 
             border: Border.all(
-              color: widget.selected
-                  ? AppColors.signalOrange
-                      .withOpacity(
-                      hovered ? 0.58 : 0.22,
-                    )
-                  : Colors.transparent,
+              color: Colors.transparent,
             ),
 
             boxShadow: hovered
@@ -525,35 +516,25 @@ class _ToolsMenuRowState
                     );
                   },
 
-                  child: widget.selected
-                      ? Icon(
-                          Icons.check_rounded,
-                          key: const ValueKey(
-                            'selected',
+                  child: widget.icon == null
+                      ? const SizedBox(
+                          key: ValueKey(
+                            'empty',
                           ),
-                          size: 15,
-                          color:
-                              AppColors.signalOrange,
                         )
-                      : widget.icon == null
-                          ? const SizedBox(
-                              key: ValueKey(
-                                'empty',
-                              ),
-                            )
-                          : Icon(
-                              widget.icon,
-                              key: ValueKey(
-                                widget.icon,
-                              ),
-                              size: 14,
-                              color: hovered
-                                  ? AppColors
-                                      .signalOrange
-                                  : const Color(
-                                      0xFF596066,
-                                    ),
-                            ),
+                      : Icon(
+                          widget.icon,
+                          key: ValueKey(
+                            widget.icon,
+                          ),
+                          size: 14,
+                          color: hovered
+                              ? AppColors
+                                  .signalOrange
+                              : const Color(
+                                  0xFF596066,
+                                ),
+                        ),
                 ),
               ),
 
@@ -571,7 +552,7 @@ class _ToolsMenuRowState
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight:
-                        hovered || widget.selected
+                        hovered
                             ? FontWeight.w600
                             : FontWeight.w500,
                     color:
@@ -579,25 +560,6 @@ class _ToolsMenuRowState
                   ),
                 ),
               ),
-
-              // ==============================================================
-              // SHORTCUT
-              // ==============================================================
-
-              if (widget.shortcut != null)
-                AnimatedOpacity(
-                  duration: const Duration(
-                    milliseconds: 120,
-                  ),
-                  opacity: hovered ? 1.0 : 0.72,
-                  child: Text(
-                    widget.shortcut!,
-                    style: const TextStyle(
-                      fontSize: 9.5,
-                      color: Color(0xFF8A9095),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),

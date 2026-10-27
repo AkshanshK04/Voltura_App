@@ -960,9 +960,9 @@ class _EditSubmenuState
               1,
           top: position.dy,
           width: 200,
-          children: widget.children,
           onEnter: _enterChild,
           onExit: _exitChild,
+          children: widget.children,
         );
       },
     );

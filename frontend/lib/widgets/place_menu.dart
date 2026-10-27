@@ -690,13 +690,11 @@ class _PlaceMenuSurfaceState
 class _PlaceMenuRow extends StatefulWidget {
   final IconData? icon;
   final String title;
-  final String? shortcut;
   final VoidCallback onTap;
 
   const _PlaceMenuRow({
     this.icon,
     required this.title,
-    this.shortcut,
     required this.onTap,
   });
 
@@ -842,19 +840,6 @@ class _PlaceMenuRowState extends State<_PlaceMenuRow> {
                   ),
                 ),
               ),
-              if (widget.shortcut != null)
-                AnimatedOpacity(
-                  duration:
-                      const Duration(milliseconds: 120),
-                  opacity: hovered ? 1.0 : 0.72,
-                  child: Text(
-                    widget.shortcut!,
-                    style: const TextStyle(
-                      fontSize: 9.5,
-                      color: Color(0xFF8A9095),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -948,9 +933,9 @@ class _PlaceSubmenuState
           left: position.dx + size.width - 1,
           top: position.dy,
           width: 205,
-          children: widget.children,
           onEnter: _enterChild,
           onExit: _exitChild,
+          children: widget.children,
         );
       },
     );

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -1286,9 +1285,9 @@ class _ViewSubmenuState
           left: position.dx + size.width - 1,
           top: position.dy,
           width: 242,
-          children: widget.children,
           onEnter: _enterChild,
           onExit: _exitChild,
+          children: widget.children,
         );
       },
     );

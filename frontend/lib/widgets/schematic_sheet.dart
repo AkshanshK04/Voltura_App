@@ -99,9 +99,6 @@ class _SchematicSheetState extends State<SchematicSheet> {
 
   SchematicGridType _gridType = SchematicGridType.grid;
 
-  SchematicHighlightMode _highlightMode =
-      SchematicHighlightMode.unhighlight;
-
   // ==========================================================================
   // SHARED VIEW SETTINGS
   // ==========================================================================
@@ -241,10 +238,6 @@ class _SchematicSheetState extends State<SchematicSheet> {
 
   double _editorLeftInset() {
     return _workspaceActivityBarWidth + _workspaceOffset();
-  }
-
-  double _editorTopInset() {
-    return _sheetTabBarHeight;
   }
 
   Offset screenToWorld(Offset screen) {
@@ -394,27 +387,6 @@ class _SchematicSheetState extends State<SchematicSheet> {
   }
 
   // ==========================================================================
-  // DISPLAY VALUES
-  // ==========================================================================
-
-  String _formatGridValue() {
-    if (_unit == SchematicUnit.mm) {
-      if ((_gridMm - _gridMm.round()).abs() < 0.0001) {
-        return '${_gridMm.round()} mm';
-      }
-
-      return '${_gridMm.toStringAsFixed(3)} mm'.replaceFirst(
-        RegExp(r'0+ mm$'),
-        ' mm',
-      );
-    }
-
-    final inch = _gridMm / 25.4;
-
-    return '${inch.toStringAsFixed(2)} inch';
-  }
-
-  // ==========================================================================
   // SHARED VIEW SETTINGS
   // ==========================================================================
 
@@ -437,18 +409,6 @@ class _SchematicSheetState extends State<SchematicSheet> {
         break;
       case GridType.none:
         _gridType = SchematicGridType.none;
-        break;
-    }
-
-    switch (settings.highlightNetMode) {
-      case HighlightNetMode.highlight:
-        _highlightMode = SchematicHighlightMode.highlight;
-        break;
-      case HighlightNetMode.unhighlight:
-        _highlightMode = SchematicHighlightMode.unhighlight;
-        break;
-      case HighlightNetMode.hoverWire:
-        _highlightMode = SchematicHighlightMode.hoverWire;
         break;
     }
   }
@@ -1378,7 +1338,7 @@ class _SheetTabBar extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.only(left: 4),
               itemCount: sheets.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 1),
+              separatorBuilder: (_, _) => const SizedBox(width: 1),
               itemBuilder: (context, index) {
                 final sheet = sheets[index];
                 final selected = sheet == activeSheet;
@@ -3098,7 +3058,7 @@ class EdaVerticalRulerPainter extends CustomPainter {
               y / pixelsPerMm,
             ),
             style: const TextStyle(
-              color: const Color(0xFF4B5358),
+              color: Color(0xFF4B5358),
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),

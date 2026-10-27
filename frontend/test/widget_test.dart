@@ -7,24 +7,44 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:frontend/main.dart';
+import 'package:frontend/app/app.dart';
+import 'package:frontend/theme/theme_controller.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('VolturaApp mounts and toggles logo in light and dark mode', (WidgetTester tester) async {
+    ThemeController.instance.setLight();
+    await tester.pumpWidget(const VolturaApp());
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.byType(VolturaApp), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Light mode should show voltura_logo.png
+    final lightLogoFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is Image &&
+          widget.image is AssetImage &&
+          (widget.image as AssetImage).assetName ==
+              'assets/images/voltura_logo.png',
+    );
+    expect(lightLogoFinder, findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Switch to dark mode
+    ThemeController.instance.setDark();
+    await tester.pumpAndSettle();
+
+    // Dark mode should show voltura_logo_dark.png
+    final darkLogoFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is Image &&
+          widget.image is AssetImage &&
+          (widget.image as AssetImage).assetName ==
+              'assets/images/voltura_logo_dark.png',
+    );
+    expect(darkLogoFinder, findsOneWidget);
+
+    // Switch back to light mode
+    ThemeController.instance.setLight();
+    await tester.pumpAndSettle();
+    expect(lightLogoFinder, findsOneWidget);
   });
 }
