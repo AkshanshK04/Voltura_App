@@ -1595,97 +1595,186 @@ class _AnimatedActionCard extends StatefulWidget {
 class _AnimatedActionCardState
     extends State<_AnimatedActionCard> {
   bool hovered = false;
+  bool pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        setState(() {
-          hovered = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hovered = false;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        width: 390,
-        padding: const EdgeInsets.all(22),
-        transform: Matrix4.translationValues(
-          0,
-          hovered ? -3 : 0,
-          0,
-        ),
-        decoration: BoxDecoration(
-          color: widget.surface,
-          borderRadius: BorderRadius.circular(
-            hovered ? 17 : 15,
-          ),
-          border: Border.all(
-            color: hovered
-                ? AppColors.signalOrange.withOpacity(0.45)
-                : widget.border,
-          ),
-          boxShadow: hovered
-              ? [
-                  BoxShadow(
-                    color: AppColors.signalOrange
-                        .withOpacity(0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 7),
-                  ),
-                ]
-              : [],
-        ),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: hovered ? 51 : 48,
-              height: hovered ? 51 : 48,
-              decoration: BoxDecoration(
-                color: AppColors.signalOrange.withOpacity(
-                  hovered ? 0.14 : 0.10,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                widget.icon,
-                color: AppColors.signalOrange,
-                size: 24,
-              ),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, animation, child) {
+        return Opacity(
+          opacity: animation,
+          child: Transform.translate(
+            offset: Offset(
+              0,
+              8 * (1 - animation),
             ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+            child: child,
+          ),
+        );
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) {
+          setState(() {
+            hovered = true;
+          });
+        },
+        onExit: (_) {
+          setState(() {
+            hovered = false;
+            pressed = false;
+          });
+        },
+        child: GestureDetector(
+          onTapDown: (_) {
+            setState(() {
+              pressed = true;
+            });
+          },
+          onTapUp: (_) {
+            setState(() {
+              pressed = false;
+            });
+          },
+          onTapCancel: () {
+            setState(() {
+              pressed = false;
+            });
+          },
+          child: AnimatedScale(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            scale: pressed
+                ? 0.975
+                : hovered
+                    ? 1.015
+                    : 1.0,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 190),
+              curve: Curves.easeOutCubic,
+              width: 280,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: hovered
+                    ? AppColors.signalOrange.withOpacity(
+                        widget.isDark ? 0.055 : 0.025,
+                      )
+                    : widget.surface,
+                borderRadius: BorderRadius.circular(
+                  hovered ? 14 : 12,
+                ),
+                border: Border.all(
+                  color: hovered
+                      ? AppColors.signalOrange.withOpacity(
+                          0.42,
+                        )
+                      : widget.border,
+                  width: hovered ? 1.1 : 1,
+                ),
+                boxShadow: hovered
+                    ? [
+                        BoxShadow(
+                          color: AppColors.signalOrange
+                              .withOpacity(0.08),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        ),
+                      ]
+                    : [],
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    widget.title,
-                    style: TextStyle(
-                      color: widget.text,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                  AnimatedContainer(
+                    duration:
+                        const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    width: hovered ? 36 : 34,
+                    height: hovered ? 36 : 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.signalOrange
+                          .withOpacity(
+                        hovered
+                            ? 0.14
+                            : widget.isDark
+                                ? 0.10
+                                : 0.07,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: AnimatedScale(
+                      duration:
+                          const Duration(milliseconds: 180),
+                      curve: Curves.easeOutBack,
+                      scale: hovered ? 1.08 : 1,
+                      child: Icon(
+                        widget.icon,
+                        color: AppColors.signalOrange,
+                        size: 18,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    widget.description,
-                    style: TextStyle(
-                      color: widget.subText,
-                      fontSize: 12,
-                      height: 1.4,
+
+                  const SizedBox(width: 11),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: widget.text,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (widget.description.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: widget.subText,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  AnimatedSlide(
+                    duration:
+                        const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    offset: hovered
+                        ? const Offset(0.12, 0)
+                        : Offset.zero,
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: hovered
+                          ? AppColors.signalOrange
+                          : widget.subText,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

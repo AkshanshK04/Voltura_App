@@ -46,26 +46,28 @@ class _CustomWindowBarState
     // ----------------------------------------------------------
     // SEARCH BAR
     // ----------------------------------------------------------
-    // Search bar intentionally stays WHITE in both themes.
+    // Translucent glassmorphic search bar for increased transparency.
 
     final Color searchBackground =
-        Colors.white;
+        Colors.white.withOpacity(0.12);
 
     final Color searchFocusedBackground =
-        Colors.white;
+        Colors.white.withOpacity(0.20);
 
-    final Color searchBorder = isDark
-        ? AppColors.darkBorder
-        : const Color(0xFFCBD0D4);
+    final Color searchBorder =
+        Colors.white.withOpacity(0.20);
+
+    final Color searchHoveredBorder =
+        Colors.white.withOpacity(0.40);
 
     final Color searchText =
-        const Color(0xFF30343A);
+        Colors.white;
 
     final Color searchHint =
-        const Color(0xFF858B91);
+        Colors.white.withOpacity(0.65);
 
     final Color searchIcon =
-        const Color(0xFF697078);
+        Colors.white.withOpacity(0.70);
 
     return Container(
       height: 50,
@@ -91,7 +93,6 @@ class _CustomWindowBarState
             child: SizedBox(
               key: ValueKey<bool>(isDark),
               height: 28,
-              width: isDark ? null : 30,
               child: Image.asset(
                 isDark
                     ? 'assets/images/voltura_logo_dark.png'
@@ -202,13 +203,7 @@ class _CustomWindowBarState
                       searchFocused
                           ? AppColors.signalOrange
                           : searchHovered
-                              ? AppColors
-                                  .slateGray
-                                  .withOpacity(
-                                  isDark
-                                      ? 0.70
-                                      : 0.75,
-                                )
+                              ? searchHoveredBorder
                               : searchBorder,
 
                   width:
@@ -243,6 +238,12 @@ class _CustomWindowBarState
 
               child:
                   TextField(
+                textAlign:
+                    TextAlign.center,
+
+                textAlignVertical:
+                    TextAlignVertical.center,
+
                 onTap: () {
                   setState(() {
                     searchFocused =
@@ -267,8 +268,10 @@ class _CustomWindowBarState
 
                 decoration:
                     InputDecoration(
+                  isDense: true,
+
                   hintText:
-                      ' Schematic, Components...',
+                      'Schematic, Components...',
 
                   hintStyle:
                       TextStyle(
@@ -276,11 +279,17 @@ class _CustomWindowBarState
                     fontSize: 12.5,
                   ),
 
+                  prefixIconConstraints:
+                      const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 32,
+                  ),
+
                   prefixIcon:
                       Icon(
                     Icons.search_rounded,
 
-                    size: 19,
+                    size: 18,
 
                     color:
                         searchFocused
@@ -289,14 +298,26 @@ class _CustomWindowBarState
                             : searchIcon,
                   ),
 
+                  suffixIconConstraints:
+                      const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 32,
+                  ),
+
+                  suffixIcon:
+                      const SizedBox(
+                    width: 36,
+                    height: 32,
+                  ),
+
                   border:
                       InputBorder.none,
 
                   contentPadding:
                       const EdgeInsets
                           .symmetric(
-                    vertical: 7,
-                    horizontal: 4,
+                    vertical: 6,
+                    horizontal: 0,
                   ),
                 ),
               ),

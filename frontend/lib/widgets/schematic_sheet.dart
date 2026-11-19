@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -27,9 +26,10 @@ enum SchematicHighlightMode {
 const double _workspaceDockWidth = 286.0;
 const double _workspaceActivityBarWidth = 52.0;
 const double _sheetTabBarHeight = 40.0;
+const double _aiDockWidth = 320.0;
 
-// Theme-aware Voltura workbench colors. The rulers intentionally do NOT use
-// these colors: their drafting scale remains white in both light and dark mode.
+// Theme-aware Voltura workbench colors. The rulers and sheet tabs intentionally
+// do NOT use dark surface colors: they remain white in both light and dark mode.
 class _WorkbenchColors {
   static bool _dark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
@@ -39,9 +39,6 @@ class _WorkbenchColors {
 
   static Color surface(BuildContext context) =>
       _dark(context) ? AppColors.darkSurface : AppColors.lightSurface;
-
-  static Color text(BuildContext context) =>
-      _dark(context) ? AppColors.darkText : AppColors.lightText;
 
   static Color subText(BuildContext context) =>
       _dark(context) ? AppColors.darkSubText : AppColors.lightSubText;
@@ -238,6 +235,36 @@ class _SchematicSheetState extends State<SchematicSheet> {
 
   double _editorLeftInset() {
     return _workspaceActivityBarWidth + _workspaceOffset();
+  }
+
+  double _editorRightInset() {
+    return _aiOpen ? _aiDockWidth : 0.0;
+  }
+
+  void _toggleAi() {
+    if (_aiOpen) {
+      _closeAi();
+    } else {
+      setState(() {
+        _aiOpen = true;
+        _workspaceOpen = false;
+        final currentTranslation = _translation;
+        final newX = currentTranslation.dx - (_aiDockWidth / 2);
+        _controller.value =
+            _makeMatrix(_scale, Offset(newX, currentTranslation.dy));
+      });
+    }
+  }
+
+  void _closeAi() {
+    if (!_aiOpen) return;
+    setState(() {
+      _aiOpen = false;
+      final currentTranslation = _translation;
+      final newX = currentTranslation.dx + (_aiDockWidth / 2);
+      _controller.value =
+          _makeMatrix(_scale, Offset(newX, currentTranslation.dy));
+    });
   }
 
   Offset screenToWorld(Offset screen) {
@@ -540,6 +567,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
       size.width -
           _workspaceActivityBarWidth -
           _workspaceOffset() -
+          _editorRightInset() -
           rulerSize,
       size.height -
           _sheetTabBarHeight -
@@ -899,7 +927,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
                 left: _editorLeftInset() + rulerSize,
-                right: 0,
+                right: _editorRightInset(),
                 top: _sheetTabBarHeight + rulerSize,
                 bottom: 0,
                 child: MouseRegion(
@@ -988,9 +1016,11 @@ class _SchematicSheetState extends State<SchematicSheet> {
               // The scale is now part of the editor chrome. It is NOT attached
               // to the sheet frame. It stays directly below the sheet tabs and
               // starts immediately after the vertical ruler lane.
-              Positioned(
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
                 left: _editorLeftInset() + rulerSize,
-                right: 0,
+                right: _editorRightInset(),
                 top: _sheetTabBarHeight,
                 height: rulerSize,
                 child: ClipRect(
@@ -1034,18 +1064,18 @@ class _SchematicSheetState extends State<SchematicSheet> {
                 width: rulerSize,
                 height: rulerSize,
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: _WorkbenchColors.surface(context),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
                     border: Border(
-                      right: BorderSide(color: _WorkbenchColors.border(context)),
-                      bottom: BorderSide(color: _WorkbenchColors.border(context)),
+                      right: BorderSide(color: AppColors.lightBorder),
+                      bottom: BorderSide(color: AppColors.lightBorder),
                     ),
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Icon(
                       Icons.add,
                       size: 10,
-                      color: _WorkbenchColors.subText(context),
+                      color: AppColors.lightSubText,
                     ),
                   ),
                 ),
@@ -1065,7 +1095,9 @@ class _SchematicSheetState extends State<SchematicSheet> {
                   onTap: () {
                     setState(() {
                       _workspaceOpen = !_workspaceOpen;
-                      _aiOpen = false;
+                      if (_workspaceOpen && _aiOpen) {
+                        _closeAi();
+                      }
                     });
                   },
                 ),
@@ -1101,7 +1133,7 @@ class _SchematicSheetState extends State<SchematicSheet> {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
                 left: _editorLeftInset(),
-                right: 0,
+                right: _editorRightInset(),
                 top: 0,
                 height: _sheetTabBarHeight,
                 child: _SheetTabBar(
@@ -1127,48 +1159,39 @@ class _SchematicSheetState extends State<SchematicSheet> {
               ),
 
               // ===============================================================
-              // TRANSPARENT WORKSPACE / AI OVERLAY
+              // DOCKED AI PANEL
               // ===============================================================
 
-              if (_aiOpen)
-                Positioned.fill(
-                  child: _WorkspaceOverlay(
-                    workspaceOpen: false,
-                    aiOpen: _aiOpen,
-                    onClose: () {
-                      setState(() {
-                        _workspaceOpen = false;
-                        _aiOpen = false;
-                      });
-                    },
-                    onSheetSelected: (sheetName) {
-                      widget.onCommand?.call(
-                        'Open Sheet: $sheetName',
-                      );
-                      setState(() {
-                        _workspaceOpen = false;
-                      });
-                    },
-                  ),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: _aiOpen ? _aiDockWidth : 0,
+                child: ClipRect(
+                  child: _aiOpen
+                      ? _AiPanel(
+                          onClose: _closeAi,
+                        )
+                      : const SizedBox.shrink(),
                 ),
+              ),
 
               // ===============================================================
               // FLOATING AI ICON
               // ===============================================================
 
-              Positioned(
-                right: 14,
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                right: _aiOpen ? (_aiDockWidth + 14) : 14,
                 bottom: 48,
                 child: _FloatingActionIcon(
                   icon: Icons.auto_awesome_outlined,
                   tooltip: 'AI',
                   active: _aiOpen,
-                  onTap: () {
-                    setState(() {
-                      _aiOpen = !_aiOpen;
-                      _workspaceOpen = false;
-                    });
-                  },
+                  onTap: _toggleAi,
                 ),
               ),
 
@@ -1322,11 +1345,11 @@ class _SheetTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: _WorkbenchColors.surface(context),
+      decoration: const BoxDecoration(
+        color: Colors.white,
         border: Border(
           bottom: BorderSide(
-            color: _WorkbenchColors.border(context),
+            color: AppColors.lightBorder,
             width: 0.8,
           ),
         ),
@@ -1363,7 +1386,7 @@ class _SheetTabBar extends StatelessWidget {
                   child: Icon(
                     Icons.add,
                     size: 18,
-                    color: Color(0xFF9BA5AB),
+                    color: Color(0xFF7A848A),
                   ),
                 ),
               ),
@@ -1400,7 +1423,7 @@ class _SheetTab extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
           padding: const EdgeInsets.only(left: 13, right: 7),
           decoration: BoxDecoration(
-            color: selected ? _WorkbenchColors.background(context) : _WorkbenchColors.surface(context),
+            color: selected ? AppColors.lightBackground : Colors.white,
             border: Border(
               top: BorderSide(
                 color: selected
@@ -1408,8 +1431,8 @@ class _SheetTab extends StatelessWidget {
                     : Colors.transparent,
                 width: 2.2,
               ),
-              left: BorderSide(color: _WorkbenchColors.border(context)),
-              right: BorderSide(color: _WorkbenchColors.border(context)),
+              left: const BorderSide(color: AppColors.lightBorder),
+              right: const BorderSide(color: AppColors.lightBorder),
             ),
           ),
           child: Row(
@@ -1419,7 +1442,7 @@ class _SheetTab extends StatelessWidget {
                 size: 14,
                 color: selected
                     ? AppColors.signalOrange
-                    : _WorkbenchColors.subText(context),
+                    : AppColors.lightSubText,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1430,7 +1453,7 @@ class _SheetTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                    color: _WorkbenchColors.text(context),
+                    color: AppColors.lightText,
                   ),
                 ),
               ),
@@ -1547,42 +1570,6 @@ class _FloatingActionIconState extends State<_FloatingActionIcon>
 }
 
 // ============================================================================
-// TRANSPARENT OVERLAY
-// ============================================================================
-
-class _WorkspaceOverlay extends StatelessWidget {
-  final bool workspaceOpen;
-  final bool aiOpen;
-  final VoidCallback onClose;
-  final ValueChanged<String> onSheetSelected;
-
-  const _WorkspaceOverlay({
-    required this.workspaceOpen,
-    required this.aiOpen,
-    required this.onClose,
-    required this.onSheetSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        if (aiOpen)
-          Positioned(
-            top: 12,
-            bottom: 12,
-            right: 62,
-            width: 350,
-            child: _AiPanel(
-              onClose: onClose,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// ============================================================================
 // GLASS PANEL HEADER
 // ============================================================================
 
@@ -1599,9 +1586,11 @@ class _GlassPanelHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 15),
+      height: _sheetTabBarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: _WorkbenchColors.surface(context),
         border: Border(
@@ -1614,32 +1603,32 @@ class _GlassPanelHeader extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: 18,
-            color: _WorkbenchColors.subText(context),
+            size: 17,
+            color: AppColors.signalOrange,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.05,
-                color: Color(0xFF303940),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: isDark ? Colors.white : const Color(0xFF303940),
               ),
             ),
           ),
           Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               onTap: onClose,
-              child: const Padding(
-                padding: EdgeInsets.all(6),
+              child: Padding(
+                padding: const EdgeInsets.all(5),
                 child: Icon(
                   Icons.close_rounded,
                   size: 17,
-                  color: Color(0xFF68737A),
+                  color: isDark ? Colors.white70 : const Color(0xFF68737A),
                 ),
               ),
             ),
@@ -1809,83 +1798,84 @@ class _AiPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(
-          sigmaX: 24,
-          sigmaY: 24,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              // Same ultra-light glass opacity as the floating Workspace / AI icons.
-              color: Colors.white.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.18),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.025),
-                  blurRadius: 18,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 5),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.08),
-                  blurRadius: 12,
-                  spreadRadius: -4,
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _GlassPanelHeader(
-                  icon: Icons.auto_awesome_outlined,
-                  title: 'AI ASSISTANT',
-                  onClose: onClose,
-                ),
-                const Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(28),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.auto_awesome,
-                            size: 34,
-                            color: Color(0xFF7E898F),
-                          ),
-                          SizedBox(height: 14),
-                          Text(
-                            'AI workspace',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF3B454C),
-                            ),
-                          ),
-                          SizedBox(height: 7),
-                          Text(
-                            'Your schematic AI tools can appear here.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 11,
-                              height: 1.5,
-                              color: Color(0xFF78838A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: _WorkbenchColors.surface(context),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: _WorkbenchColors.border(context),
+              width: 1,
             ),
           ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _GlassPanelHeader(
+              icon: Icons.auto_awesome_rounded,
+              title: 'AI ASSISTANT',
+              onClose: onClose,
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 14, 16, 7),
+              child: Text(
+                'AI COPILOT',
+                style: TextStyle(
+                  color: Color(0xFF77838B),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.15,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.signalOrange.withOpacity(0.12),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 26,
+                          color: AppColors.signalOrange,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'AI Workspace',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF2B3339),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Your schematic AI tools appear here alongside your sheet.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: isDark ? Colors.white60 : const Color(0xFF6E7A82),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
